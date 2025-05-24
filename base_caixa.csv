@@ -8345,3 +8345,5 @@ Data,Valor,Tipo,CentroCusto,Detalhe,Banco
 2025-05-24,285.56,Reforço,Clinica,Dinheiro,
 2025-05-24,1000.0,Entrada,Clinica,Crédito,Mercado Pago
 2025-05-24,2500.0,Saída,Pagamentos,Financiamento,BNB
+2025-05-24,250.0,Entrada,Laboratorio,Débito,Santander
+2025-05-24,100000.0,Saída,Pagamentos,Tarifa,PagBank
