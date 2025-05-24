@@ -1,6 +1,38 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
+import requests
+import base64
+
+def atualizar_csv_github(token, repo, path, mensagem, branch="main"):
+    # Lê o arquivo atualizado
+    with open(path, "rb") as f:
+        content = f.read()
+        content_b64 = base64.b64encode(content).decode()
+
+    # Pega o SHA do arquivo atual
+    url = f"https://api.github.com/repos/{repo}/contents/{path}"
+    headers = {"Authorization": f"token {token}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code != 200:
+        st.error(f"Erro ao obter SHA do arquivo: {r.text}")
+        return False
+    sha = r.json()["sha"]
+
+    # Faz o commit
+    data = {
+        "message": mensagem,
+        "content": content_b64,
+        "sha": sha,
+        "branch": branch
+    }
+    r = requests.put(url, headers=headers, json=data)
+    if r.status_code in [200, 201]:
+        st.success("Arquivo atualizado no GitHub!")
+        return True
+    else:
+        st.error(f"Erro ao atualizar: {r.text}")
+        return False
 
 hoje = date.today()
 data_min_padrao = hoje - timedelta(days=7)
@@ -90,6 +122,14 @@ with aba[0]:
             st.session_state['novas_linhas'] = []
             st.success(f"{qtd} novas linhas inseridas.")
 
+            # Atualiza o arquivo no GitHub
+            atualizar_csv_github(
+            token=st.secrets["github_token"],
+            repo="leoparipiranga/clinicasantasaude",
+            path="base_caixa.csv",
+            mensagem="Atualiza base_caixa.csv via Streamlit"
+            )
+
     # Botões juntos na mesma linha
     colb1, colb2, colb3 = st.columns([1,1,1])
     with colb1:
@@ -148,6 +188,13 @@ with aba[1]:
         df_final = df_final.sort_values(by="Data")
         df_final.to_csv('base_caixa.csv', index=False)
         st.success("Alterações salvas com sucesso!")
+        # Atualiza o arquivo no GitHub
+        atualizar_csv_github(
+            token=st.secrets["github_token"],
+            repo="leoparipiranga/clinicasantasaude",
+            path="base_caixa.csv",
+            mensagem="Atualiza base_caixa.csv via Streamlit"
+        )
 
 with aba[2]:
 
