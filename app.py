@@ -159,7 +159,7 @@ with aba[1]:
             "Data final",
             value=data_max_padrao,
             min_value=pd.to_datetime(df['Data']).min().date(),
-            max_value=pd.to_datetime(df['Data']).max().date()
+            max_value=date.today()
         )
 
     # Filtrar DataFrame pelo período
