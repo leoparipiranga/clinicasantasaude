@@ -8343,3 +8343,6 @@ Data,Valor,Tipo,CentroCusto,Detalhe,Banco
 2025-05-24,1.0,Entrada,Laboratorio,Débito,Santander
 2025-05-24,250.0,Entrada,Clinica,Débito,Mercado Pago
 2025-05-24,285.56,Reforço,Clinica,Dinheiro,
+2025-05-27,120.0,Entrada,Laboratorio,Crédito,Banese
+2025-05-27,200.0,Entrada,Clinica,Pix,
+2025-05-27,150.0,Saída,Pix,Dinheiro,
