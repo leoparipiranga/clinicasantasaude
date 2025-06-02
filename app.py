@@ -12,6 +12,10 @@ df = pd.read_csv(url_csv)
 hoje = date.today()
 data_min_padrao = hoje.replace(day=1)
 data_max_padrao = hoje
+data_min = df['data'].min()
+data_max = df['data'].max()
+value_ini = max(data_min, data_min_padrao)
+value_fim = min(data_max, data_max_padrao)
 
 st.title("Movimentação de Caixa")
 
@@ -255,7 +259,7 @@ with aba[1]:
         with col1:
             data_ini = st.date_input(
                 "Data inicial",
-                value=max(data_min_padrao, data_min),
+                value=value_ini,
                 min_value=data_min,
                 max_value=data_max,
                 key="alt_data_ini"
@@ -263,7 +267,7 @@ with aba[1]:
         with col2:
             data_fim = st.date_input(
                 "Data final",
-                value=min(data_max_padrao, data_max),
+                value=value_ini,
                 min_value=data_min,
                 max_value=data_max,
                 key="alt_data_fim"
@@ -329,9 +333,21 @@ with aba[2]:
         data_max = df['data'].max()
         fcol1, fcol2 = st.columns(2)
         with fcol1:
-            data_ini = st.date_input("Data inicial", value=data_min, min_value=data_min, max_value=data_max, key="vis_data_ini")
+            data_ini = st.date_input(
+                "Data inicial",
+                value=value_ini,
+                min_value=data_min,
+                max_value=data_max,
+                key="vis_data_ini"
+            )
         with fcol2:
-            data_fim = st.date_input("Data final", value=data_max, min_value=data_min, max_value=data_max, key="vis_data_fim")
+            data_fim = st.date_input(
+                "Data final",
+                value=value_fim,
+                min_value=data_min,
+                max_value=data_max,
+                key="vis_data_fim"
+            )
 
         mask = (df['data'] >= data_ini) & (df['data'] <= data_fim)
         df_filtro = df[mask].copy()
