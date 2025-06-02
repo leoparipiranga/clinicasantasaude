@@ -244,6 +244,8 @@ with aba[1]:
         df[col_data] = pd.to_datetime(df[col_data]).dt.date
         data_min = df[col_data].min()
         data_max = date.today()
+        value_ini = max(data_min, data_min_padrao)
+        value_fim = min(data_max, data_max_padrao)
         col1, col2 = st.columns(2)
         with col1:
             data_ini = st.date_input(
@@ -320,6 +322,8 @@ with aba[2]:
         df['data'] = pd.to_datetime(df['data']).dt.date
         data_min = df['data'].min()
         data_max = df['data'].max()
+        value_ini = max(data_min, data_min_padrao)
+        value_fim = min(data_max, data_max_padrao)
         fcol1, fcol2 = st.columns(2)
         with fcol1:
             data_ini = st.date_input(
