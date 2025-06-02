@@ -6,16 +6,16 @@ import base64
 import requests
 from components.functions import atualizar_csv_github_df, limpar_form_saida, salvar_form_saida, registrar_saida
 
-url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/base_caixa.csv"
-df = pd.read_csv(url_csv)
+url_csv_reforco = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/reforco.csv"
+df_reforco = pd.read_csv(url_csv_reforco)
+url_csv_entrada = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/entrada.csv"
+df_entrada = pd.read_csv(url_csv_entrada)
+url_csv_saida = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/saida.csv"
+df_saida = pd.read_csv(url_csv_saida)
 
 hoje = date.today()
 data_min_padrao = hoje.replace(day=1)
 data_max_padrao = hoje
-data_min = df['data'].min()
-data_max = df['data'].max()
-value_ini = max(data_min, data_min_padrao)
-value_fim = min(data_max, data_max_padrao)
 
 st.title("Movimentação de Caixa")
 
@@ -54,12 +54,6 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_reforco")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                # Lê ou cria o arquivo no GitHub
-                url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/reforco.csv"
-                try:
-                    df_reforco = pd.read_csv(url_csv)
-                except Exception:
-                    df_reforco = pd.DataFrame(columns=["data", "valor", "centro_custo", "forma_pagamento"])
                 df_final = pd.concat([df_reforco, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
                 atualizar_csv_github_df(
                     df_final,
@@ -87,7 +81,7 @@ with aba[0]:
             detalhes = ["SUS", "SESI", "IPES", "GEAP"]
         else:
             # Pegue detalhes do DataFrame para Clinica/Laboratorio
-            detalhes = df[df['CentroCusto'] == conta]['Detalhe'].dropna().unique().tolist()
+            detalhes = df_entrada[df_entrada['conta'] == conta]['detalhe'].dropna().unique().tolist()
         with col2:
             detalhe = st.selectbox("Detalhe", detalhes, key="detalhe_input_entrada")
         with col3:
@@ -95,7 +89,7 @@ with aba[0]:
                 banco = bancos_convenio.get(detalhe, "")
                 st.selectbox("Banco", [banco], key="banco_input_entrada", disabled=True)
             else:
-                bancos = df[(df['CentroCusto'] == conta) & (df['Detalhe'] == detalhe)]['Banco'].dropna().unique().tolist()
+                bancos = df_entrada[(df_entrada['conta'] == conta) & (df_entrada['detalhe'] == detalhe)]['banco'].dropna().unique().tolist()
                 if bancos:
                     banco = st.selectbox("Banco", bancos, key="banco_input_entrada")
                 else:
@@ -122,11 +116,6 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_entrada")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/entrada.csv"
-                try:
-                    df_entrada = pd.read_csv(url_csv)
-                except Exception:
-                    df_entrada = pd.DataFrame(columns=["data", "conta", "detalhe", "banco", "valor"])
                 df_final = pd.concat([df_entrada, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
                 atualizar_csv_github_df(
                     df_final,
