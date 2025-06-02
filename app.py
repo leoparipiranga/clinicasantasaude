@@ -347,53 +347,53 @@ with aba[2]:
             key="vis_data_fim"
         )
 
-        mask = (df['data'] >= data_ini) & (df['data'] <= data_fim)
-        df_filtro = df[mask].copy()
+    mask = (df['data'] >= data_ini) & (df['data'] <= data_fim)
+    df_filtro = df[mask].copy()
 
-        # Filtros personalizados
-        if tabela_sel == "Reforço":
-            pass  # Só filtro de data
-        elif tabela_sel == "Entrada":
-            contas_disp = ["Todos"] + sorted(df_filtro['conta'].dropna().unique().tolist())
-            conta_filtro = st.selectbox("Conta", contas_disp, key="vis_conta")
-            if conta_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['conta'] == conta_filtro]
-            detalhes_disp = ["Todos"] + sorted(df_filtro['detalhe'].dropna().unique().tolist())
-            detalhe_filtro = st.selectbox("Detalhe", detalhes_disp, key="vis_detalhe_entrada")
-            if detalhe_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['detalhe'] == detalhe_filtro]
-            bancos_disp = ["Todos"] + sorted(df_filtro['banco'].dropna().unique().tolist())
-            banco_filtro = st.selectbox("Banco", bancos_disp, key="vis_banco_entrada")
-            if banco_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['banco'] == banco_filtro]
-        elif tabela_sel == "Saída":
-            custos_disp = ["Todos"] + sorted(df_filtro['custo'].dropna().unique().tolist())
-            custo_filtro = st.selectbox("Custo", custos_disp, key="vis_custo")
-            if custo_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['custo'] == custo_filtro]
-            descricoes_disp = ["Todos"] + sorted(df_filtro['descricao'].dropna().unique().tolist())
-            descricao_filtro = st.selectbox("Descrição", descricoes_disp, key="vis_descricao")
-            if descricao_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['descricao'] == descricao_filtro]
-            centros_disp = ["Todos"] + sorted(df_filtro['centro_custo'].dropna().unique().tolist())
-            centro_filtro = st.selectbox("Centro de Custo", centros_disp, key="vis_centro_saida")
-            if centro_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['centro_custo'] == centro_filtro]
-            formas_disp = ["Todos"] + sorted(df_filtro['forma_pagamento'].dropna().unique().tolist())
-            forma_filtro = st.selectbox("Forma de Pagamento", formas_disp, key="vis_forma")
-            if forma_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['forma_pagamento'] == forma_filtro]
-            bancos_disp = ["Todos"] + sorted(df_filtro['banco'].dropna().unique().tolist())
-            banco_filtro = st.selectbox("Banco", bancos_disp, key="vis_banco_saida")
-            if banco_filtro != "Todos":
-                df_filtro = df_filtro[df_filtro['banco'] == banco_filtro]
+    # Filtros personalizados
+    if tabela_sel == "Reforço":
+        pass  # Só filtro de data
+    elif tabela_sel == "Entrada":
+        contas_disp = ["Todos"] + sorted(df_filtro['conta'].dropna().unique().tolist())
+        conta_filtro = st.selectbox("Conta", contas_disp, key="vis_conta")
+        if conta_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['conta'] == conta_filtro]
+        detalhes_disp = ["Todos"] + sorted(df_filtro['detalhe'].dropna().unique().tolist())
+        detalhe_filtro = st.selectbox("Detalhe", detalhes_disp, key="vis_detalhe_entrada")
+        if detalhe_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['detalhe'] == detalhe_filtro]
+        bancos_disp = ["Todos"] + sorted(df_filtro['banco'].dropna().unique().tolist())
+        banco_filtro = st.selectbox("Banco", bancos_disp, key="vis_banco_entrada")
+        if banco_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['banco'] == banco_filtro]
+    elif tabela_sel == "Saída":
+        custos_disp = ["Todos"] + sorted(df_filtro['custo'].dropna().unique().tolist())
+        custo_filtro = st.selectbox("Custo", custos_disp, key="vis_custo")
+        if custo_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['custo'] == custo_filtro]
+        descricoes_disp = ["Todos"] + sorted(df_filtro['descricao'].dropna().unique().tolist())
+        descricao_filtro = st.selectbox("Descrição", descricoes_disp, key="vis_descricao")
+        if descricao_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['descricao'] == descricao_filtro]
+        centros_disp = ["Todos"] + sorted(df_filtro['centro_custo'].dropna().unique().tolist())
+        centro_filtro = st.selectbox("Centro de Custo", centros_disp, key="vis_centro_saida")
+        if centro_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['centro_custo'] == centro_filtro]
+        formas_disp = ["Todos"] + sorted(df_filtro['forma_pagamento'].dropna().unique().tolist())
+        forma_filtro = st.selectbox("Forma de Pagamento", formas_disp, key="vis_forma")
+        if forma_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['forma_pagamento'] == forma_filtro]
+        bancos_disp = ["Todos"] + sorted(df_filtro['banco'].dropna().unique().tolist())
+        banco_filtro = st.selectbox("Banco", bancos_disp, key="vis_banco_saida")
+        if banco_filtro != "Todos":
+            df_filtro = df_filtro[df_filtro['banco'] == banco_filtro]
 
-        # Resumo acima da tabela
-        num_linhas = len(df_filtro)
-        total = df_filtro['valor'].sum()
-        st.markdown(
-            f"<div style='font-size:1.2em; font-weight:bold;'>{num_linhas} Linhas filtradas  -  Total: R$ {total:,.2f}</div>",
-            unsafe_allow_html=True
-        )
+    # Resumo acima da tabela
+    num_linhas = len(df_filtro)
+    total = df_filtro['valor'].sum()
+    st.markdown(
+        f"<div style='font-size:1.2em; font-weight:bold;'>{num_linhas} Linhas filtradas  -  Total: R$ {total:,.2f}</div>",
+        unsafe_allow_html=True
+    )
 
-        st.dataframe(df_filtro, use_container_width=True, hide_index=True)
+    st.dataframe(df_filtro, use_container_width=True, hide_index=True)
