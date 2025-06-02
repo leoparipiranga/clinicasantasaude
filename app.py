@@ -322,25 +322,30 @@ with aba[2]:
         df['data'] = pd.to_datetime(df['data']).dt.date
         data_min = df['data'].min()
         data_max = df['data'].max()
-        value_ini = max(data_min, data_min_padrao)
-        value_fim = min(data_max, data_max_padrao)
-        fcol1, fcol2 = st.columns(2)
-        with fcol1:
-            data_ini = st.date_input(
-                "Data inicial",
-                value=value_ini,
-                min_value=data_min,
-                max_value=data_max,
-                key="vis_data_ini"
-            )
-        with fcol2:
-            data_fim = st.date_input(
-                "Data final",
-                value=value_fim,
-                min_value=data_min,
-                max_value=data_max,
-                key="vis_data_fim"
-            )
+    else:
+        data_min = data_max = date.today()
+
+    # Garante que os valores padrão estão dentro do intervalo permitido
+    value_ini = min(max(data_min, data_min_padrao), data_max)
+    value_fim = max(min(data_max, data_max_padrao), data_min)
+
+    fcol1, fcol2 = st.columns(2)
+    with fcol1:
+        data_ini = st.date_input(
+            "Data inicial",
+            value=value_ini,
+            min_value=data_min,
+            max_value=data_max,
+            key="vis_data_ini"
+        )
+    with fcol2:
+        data_fim = st.date_input(
+            "Data final",
+            value=value_fim,
+            min_value=data_min,
+            max_value=data_max,
+            key="vis_data_fim"
+        )
 
         mask = (df['data'] >= data_ini) & (df['data'] <= data_fim)
         df_filtro = df[mask].copy()
