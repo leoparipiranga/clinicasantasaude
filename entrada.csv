@@ -1486,3 +1486,6 @@ data,valor,conta,detalhe,banco
 2025-05-24,125.0,Laboratorio,Débito,Santander
 2025-05-24,1.0,Laboratorio,Débito,Santander
 2025-05-27,120.0,Clinica,Crédito,Banese
+2025-06-04,1548.5,Clinica,Débito,Mercado Pago
+2025-06-04,1100.0,Convenios,SUS,C6
+2025-06-04,250.0,Laboratorio,Pix,Conta Julio
