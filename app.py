@@ -55,6 +55,7 @@ with aba[0]:
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
                 df_final = pd.concat([df_reforco, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
+                df_final = df_final[df_final['valor'] != 0]
                 atualizar_csv_github_df(
                     df_final,
                     token=st.secrets["github_token"],
@@ -117,6 +118,7 @@ with aba[0]:
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
                 df_final = pd.concat([df_entrada, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
+                df_final = df_final[df_final['valor'] != 0]
                 atualizar_csv_github_df(
                     df_final,
                     token=st.secrets["github_token"],
