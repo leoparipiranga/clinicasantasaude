@@ -4,7 +4,62 @@ from datetime import date
 import io
 import base64
 import requests
-from components.functions import atualizar_csv_github_df, limpar_form_saida, salvar_form_saida, registrar_saida
+from PIL import Image
+from components.functions import atualizar_csv_github_df, salvar_dados, registrar_saida
+
+# Configuração da página
+st.set_page_config(page_title="Santa Saúde - Movimentação de Caixa", layout="wide")
+
+# Função de autenticação
+def login():
+    st.markdown("<h1 style='text-align: center;'>Sistema de Movimentação de Caixa</h1>", unsafe_allow_html=True)
+    
+    # Carrega e exibe a imagem
+    try:
+        image = Image.open("santasaude.png")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.image(image, width=300)
+    except:
+        st.warning("Imagem santasaude.png não encontrada")
+    
+    # Formulário de login
+    with st.form("login_form"):
+        st.markdown("<h3 style='text-align: center;'>Login</h3>", unsafe_allow_html=True)
+        usuario = st.text_input("Usuário", key="login_usuario")
+        senha = st.text_input("Senha", type="password", key="login_senha")
+        submit = st.form_submit_button("Entrar")
+        
+        if submit:
+            # Verifica se o usuário existe e a senha está correta
+            if (usuario in st.secrets["usuarios"] and 
+                st.secrets["usuarios"][usuario]["senha"] == senha):
+                st.session_state["authenticated"] = True
+                st.session_state["usuario_logado"] = usuario
+                st.session_state["nome_completo"] = st.secrets["usuarios"][usuario]["nome_completo"]
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos!")
+
+# Verifica se o usuário está autenticado
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    login()
+    st.stop()
+
+# Header com logout (só aparece se estiver autenticado)
+col1, col2, col3 = st.columns([6, 1, 1])
+
+with col2:
+    # Usa .get() com valor padrão para evitar KeyError
+    nome = st.session_state.get('nome_completo', 'Usuário')
+    st.write(f"**{nome}**")
+with col3:
+    if st.button("Logout"):
+        # Limpa todas as variáveis de sessão relacionadas à autenticação
+        st.session_state["authenticated"] = False
+        st.session_state["usuario_logado"] = ""
+        st.session_state["nome_completo"] = ""
+        st.rerun()
 
 url_csv_reforco = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/reforco.csv"
 df_reforco = pd.read_csv(url_csv_reforco)
@@ -54,17 +109,7 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_reforco")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                df_final = pd.concat([df_reforco, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
-                df_final = df_final[df_final['valor'] != 0]
-                atualizar_csv_github_df(
-                    df_final,
-                    token=st.secrets["github_token"],
-                    repo="leoparipiranga/clinicasantasaude",
-                    path="reforco.csv",
-                    mensagem="Atualiza reforco.csv via Streamlit"
-                )
-                st.session_state['linhas_temp'] = []
-                st.rerun()
+                salvar_dados("Reforço")
 
     # --- ENTRADA ---
     elif tipo == "Entrada":
@@ -117,17 +162,7 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_entrada")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                df_final = pd.concat([df_entrada, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
-                df_final = df_final[df_final['valor'] != 0]
-                atualizar_csv_github_df(
-                    df_final,
-                    token=st.secrets["github_token"],
-                    repo="leoparipiranga/clinicasantasaude",
-                    path="entrada.csv",
-                    mensagem="Atualiza entrada.csv via Streamlit"
-                )
-                st.session_state['linhas_temp'] = []
-                st.rerun()
+                salvar_dados("Entrada")
         
     elif tipo == "Saída":
         # Opções de cada campo
@@ -218,8 +253,8 @@ with aba[0]:
             df_temp = pd.DataFrame(st.session_state['linhas_temp'])
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_saida")
             st.session_state['linhas_temp'] = editado.to_dict('records')
-            if st.button("Salvar", on_click=lambda: salvar_form_saida(descricoes_dict)):
-                pass
+            if st.button("Salvar"):
+                salvar_dados("Reforço")
                 
 with aba[1]:
     tipos = ["Reforço", "Entrada", "Saída"]

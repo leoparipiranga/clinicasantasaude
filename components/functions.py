@@ -4,6 +4,7 @@ import io
 import base64
 import requests
 import streamlit as st
+import pandas as pd
 from datetime import date
 
 def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
@@ -35,43 +36,52 @@ def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
         st.error(f"Erro ao atualizar: {r.text}")
         return False
 
+def salvar_dados(tipo):
+    """Função genérica para salvar dados de qualquer tipo (Reforço, Entrada, Saída)"""
+    if tipo == "Reforço":
+        arquivo = "reforco.csv"
+        colunas = ["data", "valor", "centro_custo", "forma_pagamento"]
+    elif tipo == "Entrada":
+        arquivo = "entrada.csv"
+        colunas = ["data", "conta", "detalhe", "banco", "valor"]
+    elif tipo == "Saída":
+        arquivo = "saida.csv"
+        colunas = ["data", "custo", "descricao", "detalhamento", "centro_custo", "forma_pagamento", "banco", "valor"]
+    else:
+        st.error("Tipo inválido!")
+        return False
+
+    # Lê ou cria o arquivo
+    url_csv = f"https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/{arquivo}"
+    try:
+        df_existente = pd.read_csv(url_csv)
+    except Exception:
+        df_existente = pd.DataFrame(columns=colunas)
+    
+    # Concatena com os dados temporários
+    df_final = pd.concat([df_existente, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
+    
+    # Remove linhas com valor zero
+    df_final = df_final[df_final['valor'] != 0]
+    
+    # Salva no GitHub
+    sucesso = atualizar_csv_github_df(
+        df_final,
+        token=st.secrets["github"]["github_token"],
+        repo="leoparipiranga/clinicasantasaude",
+        path=arquivo,
+        mensagem=f"Atualiza {arquivo} via Streamlit"
+    )
+    
+    if sucesso:
+        st.session_state['linhas_temp'] = []
+    
+    return sucesso
+
 def limpar_form_saida():
     st.session_state["data_saida"] = date.today()
     st.session_state["custo_saida"] = "Fixo"
     st.session_state["descricao_saida"] = ""
-    st.session_state["detalhamento_saida"] = ""
-    st.session_state["centro_saida"] = "Rateio"
-    st.session_state["forma_saida"] = "Dinheiro"
-    st.session_state["banco_saida"] = "SANTANDER"
-    st.session_state["valor_saida"] = 0.0
-
-def salvar_form_saida(descricoes_dict):
-    import pandas as pd
-    from datetime import date
-    import streamlit as st
-
-    url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/saida.csv"
-    try:
-        df_saida = pd.read_csv(url_csv)
-    except Exception:
-        df_saida = pd.DataFrame(columns=[
-            "data", "custo", "descricao", "detalhamento", "centro_custo",
-            "forma_pagamento", "banco", "valor"
-        ])
-    df_final = pd.concat([df_saida, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
-    from components.functions import atualizar_csv_github_df  # Importa aqui para evitar import circular
-    atualizar_csv_github_df(
-        df_final,
-        token=st.secrets["github_token"],
-        repo="leoparipiranga/clinicasantasaude",
-        path="saida.csv",
-        mensagem="Atualiza saida.csv via Streamlit"
-    )
-    st.session_state['linhas_temp'] = []
-    # Limpa os campos do formulário
-    st.session_state["data_saida"] = date.today()
-    st.session_state["custo_saida"] = "Fixo"
-    st.session_state["descricao_saida"] = ""  # ou a primeira opção de descricoes_dict["Fixo"]
     st.session_state["detalhamento_saida"] = ""
     st.session_state["centro_saida"] = "Rateio"
     st.session_state["forma_saida"] = "Dinheiro"
@@ -90,12 +100,4 @@ def registrar_saida():
         "valor": st.session_state["valor_saida"]
     }
     st.session_state['linhas_temp'].append(nova_linha)
-    # Limpa o formulário
-    st.session_state["data_saida"] = date.today()
-    st.session_state["custo_saida"] = "Fixo"
-    st.session_state["descricao_saida"] = ""
-    st.session_state["detalhamento_saida"] = ""
-    st.session_state["centro_saida"] = "Rateio"
-    st.session_state["forma_saida"] = "Dinheiro"
-    st.session_state["banco_saida"] = "SANTANDER"
-    st.session_state["valor_saida"] = 0.0
+    limpar_form_saida()
