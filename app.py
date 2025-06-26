@@ -346,7 +346,7 @@ with aba[1]:
             df_final = df_final.sort_values(by=col_data)
             atualizar_csv_github_df(
                 df_final,
-                token=st.secrets["github_token"],
+                token=st.secrets["github"]["github_token"],
                 repo="leoparipiranga/clinicasantasaude",
                 path=f"{tipo.lower()}.csv",
                 mensagem=f"Atualiza {tipo.lower()}.csv via Streamlit"
