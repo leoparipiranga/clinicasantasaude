@@ -13,6 +13,25 @@ st.set_page_config(page_title="Santa Saúde - Movimentação de Caixa", layout="
 
 # Função de autenticação
 def login():
+    # CSS customizado para o formulário de login
+    st.markdown("""
+    <style>
+    .login-container {
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background-color: #f8f9fa;
+    }
+    .login-title {
+        text-align: center;
+        color: #333;
+        margin-bottom: 2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.markdown("<h1 style='text-align: center;'>Sistema de Movimentação de Caixa</h1>", unsafe_allow_html=True)
     
     # Carrega e exibe a imagem
@@ -24,20 +43,26 @@ def login():
     except:
         st.warning("Imagem santasaude.png não encontrada")
     
-    # Formulário de login
-    with st.form("login_form"):
-        st.markdown("<h3 style='text-align: center;'>Login</h3>", unsafe_allow_html=True)
-        usuario = st.text_input("Usuário", key="login_usuario")
-        senha = st.text_input("Senha", type="password", key="login_senha")
-        submit = st.form_submit_button("Entrar")
+    # Container centralizado para o formulário
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col2:
+        with st.container():
+            st.markdown('<div class="login-container">', unsafe_allow_html=True)
+            st.markdown('<h3 class="login-title">Faça seu login</h3>', unsafe_allow_html=True)
+            
+            usuario = st.text_input("Usuário", placeholder="Digite seu usuário")
+            senha = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            
+            login_button = st.button("Entrar", use_container_width=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        if submit:
-            # Verifica se o usuário existe e a senha está correta
-            if (usuario in st.secrets["usuarios"] and 
-                st.secrets["usuarios"][usuario]["senha"] == senha):
-                st.session_state["authenticated"] = True
-                st.session_state["usuario_logado"] = usuario
-                st.session_state["nome_completo"] = st.secrets["usuarios"][usuario]["nome_completo"]
+        # Verificação de login
+        if login_button:
+            if usuario == "admin" and senha == "123":  # Substitua pelas suas credenciais
+                st.session_state['authenticated'] = True
+                st.success("Login realizado com sucesso!")
                 st.rerun()
             else:
                 st.error("Usuário ou senha incorretos!")
