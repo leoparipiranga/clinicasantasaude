@@ -75,9 +75,37 @@ def salvar_dados(tipo):
     
     if sucesso:
         st.session_state['linhas_temp'] = []
-    
-    return sucesso
+        st.session_state['dados_atualizados'] = True
+        st.success("Dados salvos com sucesso!")
+        
+        # Limpa o cache e força atualização
+        st.cache_data.clear()
+        
+        # Aguarda um pouco para o GitHub processar a atualização
+        import time
+        time.sleep(1)
+        
+        # Recarrega a aplicação
+        st.rerun()
+    else:
+        st.error("Erro ao salvar os dados!")
+        return False
 
+def carregar_dados_github(arquivo):
+    """Carrega dados diretamente da API do GitHub"""
+    try:
+        url = f"https://api.github.com/repos/leoparipiranga/clinicasantasaude/contents/{arquivo}"
+        headers = {"Authorization": f"token {st.secrets['github']['github_token']}"}
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            content = base64.b64decode(response.json()['content']).decode('utf-8')
+            return pd.read_csv(io.StringIO(content))
+        else:
+            return pd.DataFrame()
+    except:
+        return pd.DataFrame()
+    
 def limpar_form_saida():
     st.session_state["data_saida"] = date.today()
     st.session_state["custo_saida"] = "Fixo"
@@ -101,3 +129,44 @@ def registrar_saida():
     }
     st.session_state['linhas_temp'].append(nova_linha)
     limpar_form_saida()
+
+
+def salvar_nova_descricao(custo, descricao):
+    """Salva nova descrição no GitHub"""
+    try:
+        # Carrega arquivo de configurações existente
+        try:
+            df_config = carregar_dados_github("configuracoes.csv")
+        except:
+            df_config = pd.DataFrame(columns=["custo", "descricao"])
+        
+        # Adiciona nova linha
+        nova_linha = pd.DataFrame({"custo": [custo], "descricao": [descricao]})
+        df_final = pd.concat([df_config, nova_linha], ignore_index=True)
+        
+        # Salva no GitHub
+        atualizar_csv_github_df(
+            df_final,
+            token=st.secrets["github"]["github_token"],
+            repo="leoparipiranga/clinicasantasaude",
+            path="configuracoes.csv",
+            mensagem="Adiciona nova descrição"
+        )
+        return True
+    except:
+        return False
+
+def carregar_descricoes_personalizadas():
+    """Carrega descrições personalizadas do GitHub"""
+    try:
+        df_config = carregar_dados_github("configuracoes.csv")
+        descricoes_extras = {}
+        for _, row in df_config.iterrows():
+            custo = row['custo']
+            descricao = row['descricao']
+            if custo not in descricoes_extras:
+                descricoes_extras[custo] = []
+            descricoes_extras[custo].append(descricao)
+        return descricoes_extras
+    except:
+        return {}

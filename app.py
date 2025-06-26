@@ -5,7 +5,8 @@ import io
 import base64
 import requests
 from PIL import Image
-from components.functions import atualizar_csv_github_df, salvar_dados, registrar_saida
+import time
+from components.functions import atualizar_csv_github_df, salvar_dados, registrar_saida, carregar_dados_github, carregar_descricoes_personalizadas, salvar_nova_descricao
 
 # Configuração da página
 st.set_page_config(page_title="Santa Saúde - Movimentação de Caixa", layout="wide")
@@ -61,20 +62,73 @@ with col3:
         st.session_state["nome_completo"] = ""
         st.rerun()
 
-url_csv_reforco = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/reforco.csv"
-df_reforco = pd.read_csv(url_csv_reforco)
-url_csv_entrada = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/entrada.csv"
-df_entrada = pd.read_csv(url_csv_entrada)
-url_csv_saida = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/saida.csv"
-df_saida = pd.read_csv(url_csv_saida)
+df_reforco = carregar_dados_github("reforco.csv")
+df_entrada = carregar_dados_github("entrada.csv")
+df_saida = carregar_dados_github("saida.csv")
 
 hoje = date.today()
 data_min_padrao = hoje.replace(day=1)
 data_max_padrao = hoje
 
+# Definições globais para uso em múltiplas abas
+custos = [
+    "Fixo", "Variável", "Laboratórios e Parceiros", "Recursos Humanos", "Impostos, Taxas e Conselhos",
+    "Investimentos", "Comissões"
+]
+
+descricoes_dict = {
+    "Fixo": sorted([
+        "ALUGUEL", "ACESSO NET", "BRISA NET", "CONTABILIDADE", "ALLDOC", "TERMOCLAVE", "PONTO +",
+        "MAYELLE", "MIDIA INDOOR", "MARKETING ACERTE", "COPYGRAF", "ASSINATURA FRETE",
+        "WORKLAB (MENSALIDADES)", "SISTEMA IA WHATSAPP", "JURÍDICO", "CDL",
+        "JOSELITO - COMISSÃO RT", "OUTROS CUSTOS FIXOS"
+    ]),
+    "Variável": sorted([
+        "MANUTENÇÃO - PREDIO E EQUIPAMENTOS", "FARMAC", "CARTAO SANTANDER (8149)", "SULGIPE",
+        "CARTÃO MERCADO PAGO", "CARTAO SANTANDER (0986)", "CARTAO PORTO SEGURO",
+        "MATERIAL DE ESCRITÓRIO", "MATERIAL DE LIMPEZA E COPA", "CONSULTORIA (SETE ELOS)",
+        "TECNICO DE SEGURANÇA DO TRABALHO", "SEGURO YLM", "TRAFEGO PAGO",
+        "ALMOÇO E GASTOS DIVERSOS E MOTO TAXI", "SAAE", "OUTROS CUSTOS VARIÁVEIS"
+    ]),
+    "Laboratórios e Parceiros": sorted([
+        "CLIMEDI", "ÁLVARO (LAUDOS)", "SOLIM", "SODRETOX (TOXICOLÓGICO)", "ÁLVARO 1", "ÁLVARO 2", "ÁLVARO 3", "ÁLVARO 4"
+    ]),
+    "Recursos Humanos": [
+        "FOLHA DE PAGAMENTO", "IFOOD BENEFICIOS", "DÉCIMO TERCEIRO", "FERIAS", "VALE TRANSPORTE",
+        "PLANO ODONTOLOGICO", "RESCISÃO"
+    ],
+    "Impostos, Taxas e Conselhos": [
+        "SIMPLES (PARCELAMENTO)", "FGTS", "FGTS ATRASADO (funcionarios que saíram)", "INSS",
+        "INSS PARCELAMENTO", "SIMPLES", "DAM", "IPTU", "TAXAS (JUROS DE CHEQUE ESPECIAL)",
+        "TAXAS CARTÕES", "TAXA DE MANUTENCAO DE CONTA (SANTANDER)", "SOC BRAS DE ANALISE (PNCQ)",
+        "CRM", "CRBM (PARCELAMETO)", "CRBM"
+    ],
+    "Investimentos": [
+        "EMPRÉSTIMO BNB REFORMA","EMPRÉSTIMO BNB ULTRASSOM", "ROSE",
+        "EMPRÉSTIMO SANTANDER", "EMRPÉSTIMO SANDRO 1",
+        "FINANCIAMENTO PLACA SOLAR", "MENTORIA X5", "SISTEMA 2E DASHBOARD",
+        "CARTÃO SANDRO", "CARTÃO JÚLIO", "ELETROCARDIOGRAMA"
+    ],
+    "Comissões": [
+        "ESTORNO / TROCO", "COMISSÃO VIVIANE", "COMISSÃO JOANA", "COMISSÕES MÉDICAS"
+    ]
+}
+
+centros_custo = ["Rateio", "Clínica", "Laboratório"]
+formas_pagamento = ["Dinheiro", "Pix", "Débito", "Crédito"]
+bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO"]
+
+# Carrega descrições personalizadas do GitHub (se existirem)
+descricoes_extras = carregar_descricoes_personalizadas()
+for custo, novas_desc in descricoes_extras.items():
+    if custo in descricoes_dict:
+        descricoes_dict[custo].extend(novas_desc)
+        descricoes_dict[custo] = sorted(list(set(descricoes_dict[custo])))  # Remove duplicatas e ordena
+
+
 st.title("Movimentação de Caixa")
 
-aba = st.tabs(["Inserção", "Alteração Manual","Ver Tabela"])
+aba = st.tabs(["Inserção", "Alteração Manual","Ver Tabela","Configurações"])
 
 with aba[0]:
     tipos = ["Reforço", "Entrada", "Saída"]
@@ -123,23 +177,38 @@ with aba[0]:
         col1, col2, col3 = st.columns(3)
         with col1:
             conta = st.selectbox("Conta", contas, key="conta_input")
+        
         if conta == "Convenios":
             detalhes = ["SUS", "SESI", "IPES", "GEAP"]
         else:
             # Pegue detalhes do DataFrame para Clinica/Laboratorio
             detalhes = df_entrada[df_entrada['conta'] == conta]['detalhe'].dropna().unique().tolist()
+        
         with col2:
             detalhe = st.selectbox("Detalhe", detalhes, key="detalhe_input_entrada")
+        
         with col3:
             if conta == "Convenios":
                 banco = bancos_convenio.get(detalhe, "")
                 st.selectbox("Banco", [banco], key="banco_input_entrada", disabled=True)
+            elif detalhe == "Dinheiro":
+                # Para dinheiro, deixa desabilitado
+                st.selectbox("Banco", ["Dinheiro"], key="banco_input_entrada", disabled=True)
+                banco = "Dinheiro"
             else:
+                # Para outros detalhes (Débito, Crédito, etc.)
                 bancos = df_entrada[(df_entrada['conta'] == conta) & (df_entrada['detalhe'] == detalhe)]['banco'].dropna().unique().tolist()
+                # Remove valores 0 ou nulos da lista
+                bancos = [b for b in bancos if b != 0 and b != "0" and str(b).strip() != ""]
+                
                 if bancos:
-                    banco = st.selectbox("Banco", bancos, key="banco_input_entrada")
+                    # Define o primeiro banco como padrão
+                    banco = st.selectbox("Banco", bancos, index=0, key="banco_input_entrada")
                 else:
+                    # Se não há bancos válidos, deixa vazio
+                    banco = st.selectbox("Banco", [""], key="banco_input_entrada", disabled=True)
                     banco = ""
+        
         col4, col5 = st.columns(2)
         with col4:
             data = st.date_input("Data", value=date.today(), key="data_input_entrada")
@@ -165,53 +234,7 @@ with aba[0]:
                 salvar_dados("Entrada")
         
     elif tipo == "Saída":
-        # Opções de cada campo
-        custos = [
-            "Fixo", "Variável", "Laboratórios", "Recursos Humanos", "Tributos",
-            "Empréstimos", "Investimentos", "Comissões"
-        ]
-        descricoes_dict = {
-            "Fixo": sorted([
-                "ALUGUEL", "ACESSO NET", "BRISA NET", "CONTABILIDADE", "ALLDOC", "TERMOCLAVE", "PONTO +",
-                "MAYELLE", "MIDIA INDOOR", "MARKETING ACERTE", "COPYGRAF", "ASSINATURA FRETE",
-                "WORKLAB (MENSALIDADES)", "SISTEMA IA WHATSAPP", "JURÍDICO", "CDL",
-                "JOSELITO - COMISSÃO RT", "OUTROS CUSTOS FIXOS"
-            ]),
-            "Variável": sorted([
-                "MANUTENÇÃO - PREDIO E EQUIPAMENTOS", "FARMAC", "CARTAO SANTANDER (8149)", "SULGIPE",
-                "CARTÃO MERCADO PAGO", "CARTAO SANTANDER (0986)", "CARTAO PORTO SEGURO",
-                "MATERIAL DE ESCRITÓRIO", "MATERIAL DE LIMPEZA E COPA", "CONSULTORIA (SETE ELOS)",
-                "TECNICO DE SEGURANÇA DO TRABALHO", "SEGURO YLM", "TRAFEGO PAGO",
-                "ALMOÇO E GASTOS DIVERSOS E MOTO TAXI", "SAAE", "OUTROS CUSTOS VARIÁVEIS"
-            ]),
-            "Laboratórios": sorted([
-                "CLIMEDI", "ÁLVARO (LAUDOS)", "SOLIM", "SODRETOX", "ÁLVARO 1", "ÁLVARO 2", "ÁLVARO 3", "ÁLVARO 4"
-            ]),
-            "Recursos Humanos": [
-                "FOLHA DE PAGAMENTO", "IFOOD BENEFICIOS", "DÉCIMO TERCEIRO", "FERIAS", "VALE TRANSPORTE",
-                "PLANO ODONTOLOGICO", "RESCISÃO"
-            ],
-            "Tributos": [
-                "SIMPLES (PARCELAMENTO)", "FGTS", "FGTS ATRASADO ( funcionarios que saíram)", "INSS",
-                "INSS PARCELAMENTO", "SIMPLES", "DAM", "IPTU", "TAXAS (JUROS DE CHEQUE ESPECIAL)",
-                "TAXAS CARTÕES", "TAXA DE MANUTENCAO DE CONTA (SANTANDER)", "SOC BRAS DE ANALISE (PNCQ)",
-                "CRM", "CRBM (PARCELAMETO)", "CRBM"
-            ],
-            "Empréstimos": [
-                "EMPRÉSTIMO BNB REFORMA", "EMPRÉSTIMO BNB ULTRASSOM"
-            ],
-            "Investimentos": [
-                "CARTÃO SANDRO", "CARTÃO JULIO", "EMPRESTIMO SANDRO 1", "MENTORIA X5",
-                "FINANCIAMENTO PLACA SOLAR", "ROSE", "EMPRESTIMO SANTANDER", "ESTORNO / TROCO", "ELETROCARDIOGRAMA"
-            ],
-            "Comissões": [
-                "COMISSÃO VIVIANE", "COMISSÃO JOANA", "COMISSÕES MÉDICAS"
-            ]
-        }
-        centros_custo = ["Rateio", "Clínica", "Laboratório"]
-        formas_pagamento = ["Dinheiro", "Pix", "Débito", "Crédito"]
-        bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO"]
-
+        
         if "data_saida" not in st.session_state:
             st.session_state["data_saida"] = date.today()
         if "custo_saida" not in st.session_state:
@@ -233,8 +256,8 @@ with aba[0]:
         with col1:
             custo = st.selectbox("Custo", custos, key="custo_saida")
         with col2:
-            descricao = st.selectbox("Descrição", descricoes_dict[custo], key="descricao_saida")
-        detalhamento = st.text_input("Detalhamento", key="detalhamento_saida")
+            descricao = st.selectbox("Detalhe", descricoes_dict[custo], key="descricao_saida")
+        detalhamento = st.text_input("Observação", key="detalhamento_saida")
         col3, col4 = st.columns(2)
         with col3:
             centro_custo = st.selectbox("Centro de Custo", centros_custo, key="centro_saida")
@@ -254,28 +277,31 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_saida")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                salvar_dados("Reforço")
+                salvar_dados("Saída")
                 
 with aba[1]:
+
+    if st.session_state.get('force_refresh', False):
+        st.session_state['force_refresh'] = False
+        st.cache_data.clear()
+
     tipos = ["Reforço", "Entrada", "Saída"]
     tipo = st.radio("Tipo", tipos, horizontal=True, key="tipo_alteracao")
 
     # Escolhe o arquivo e as colunas conforme o tipo
     if tipo == "Reforço":
-        url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/reforco.csv"
+        arquivo = "reforco.csv"
         col_data = "data"
     elif tipo == "Entrada":
-        url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/entrada.csv"
+        arquivo = "entrada.csv"
         col_data = "data"
     else:
-        url_csv = "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/saida.csv"
+        arquivo = "saida.csv"
         col_data = "data"
 
-    try:
-        df = pd.read_csv(url_csv)
-    except Exception:
-        st.warning("Arquivo ainda não existe ou está vazio.")
-        df = pd.DataFrame()
+    df = carregar_dados_github(arquivo)
+    if df.empty:
+        st.warning("Arquivo ainda não existe ou está vazio.")   
 
     if not df.empty:
         df[col_data] = pd.to_datetime(df[col_data]).dt.date
@@ -330,28 +356,33 @@ with aba[1]:
         st.info("Nenhum dado disponível para alteração.")
 
 with aba[2]:
+
+    if st.session_state.get('force_refresh', False):
+        st.session_state['force_refresh'] = False
+        st.cache_data.clear()
+
     st.subheader("Visualização de Tabelas")
     tabelas = {
         "Reforço": {
-            "url": "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/reforco.csv",
+            "arquivo": "reforco.csv",
             "colunas": ["data", "valor", "centro_custo", "forma_pagamento"]
         },
         "Entrada": {
-            "url": "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/entrada.csv",
+            "arquivo": "entrada.csv",
             "colunas": ["data", "conta", "detalhe", "banco", "valor"]
         },
         "Saída": {
-            "url": "https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/saida.csv",
+            "arquivo": "saida.csv",
             "colunas": ["data", "custo", "descricao", "detalhamento", "centro_custo", "forma_pagamento", "banco", "valor"]
         }
     }
+
     tabela_sel = st.radio("Tabela", list(tabelas.keys()), horizontal=True, key="vis_tabela")
-    url_csv = tabelas[tabela_sel]["url"]
+    arquivo = tabelas[tabela_sel]["arquivo"]
     colunas = tabelas[tabela_sel]["colunas"]
 
-    try:
-        df = pd.read_csv(url_csv)
-    except Exception:
+    df = carregar_dados_github(arquivo)
+    if df.empty:
         st.warning("Arquivo ainda não existe ou está vazio.")
         df = pd.DataFrame(columns=colunas)
 
@@ -434,3 +465,35 @@ with aba[2]:
     )
 
     st.dataframe(df_filtro, use_container_width=True, hide_index=True)
+
+with aba[3]:
+    st.subheader("Configurações")
+    
+    config_opcao = st.radio("O que deseja configurar?", 
+                           ["Descrições de Saída", "Outras Configurações"], 
+                           horizontal=True)
+    
+    if config_opcao == "Descrições de Saída":
+        st.subheader("Gerenciar Descrições de Saída")
+        
+        # Selectbox para escolher o tipo de custo
+        custo_config = st.selectbox("Selecione o tipo de custo:", custos, key="custo_config")
+        
+        # Mostra as descrições atuais
+        st.write(f"**Descrições atuais para {custo_config}:**")
+        for desc in descricoes_dict[custo_config]:
+            st.write(f"• {desc}")
+        
+        # Formulário para adicionar nova descrição
+        with st.form("nova_descricao_form"):
+            nova_desc = st.text_input("Nova descrição:")
+            submitted = st.form_submit_button("Adicionar")
+            
+            if submitted and nova_desc:
+                if nova_desc not in descricoes_dict[custo_config]:
+                    # Salva a nova descrição em um arquivo
+                    salvar_nova_descricao(custo_config, nova_desc)
+                    st.success(f"Descrição '{nova_desc}' adicionada com sucesso!")
+                    st.rerun()
+                else:
+                    st.warning("Esta descrição já existe!")
