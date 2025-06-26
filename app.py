@@ -11,62 +11,91 @@ from components.functions import atualizar_csv_github_df, salvar_dados, registra
 # Configuração da página
 st.set_page_config(page_title="Santa Saúde - Movimentação de Caixa", layout="wide")
 
-# Função de autenticação
 def login():
-    # CSS customizado para o formulário de login
-    st.markdown("""
-    <style>
-    .login-container {
-        max-width: 400px;
-        margin: 0 auto;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        background-color: #f8f9fa;
-    }
-    .login-title {
-        text-align: center;
-        color: #333;
-        margin-bottom: 2rem;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    """Tela de login do sistema"""
     
-    st.markdown("<h1 style='text-align: center;'>Sistema de Movimentação de Caixa</h1>", unsafe_allow_html=True)
-    
-    # Carrega e exibe a imagem
-    try:
-        image = Image.open("santasaude.png")
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.image(image, width=300)
-    except:
-        st.warning("Imagem santasaude.png não encontrada")
-    
-    # Container centralizado para o formulário
-    col1, col2, col3 = st.columns([1, 1, 1])
+    # Container centralizado para o login
+    col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        with st.container():
-            st.markdown('<div class="login-container">', unsafe_allow_html=True)
-            st.markdown('<h3 class="login-title">Faça seu login</h3>', unsafe_allow_html=True)
+        # Header com imagem
+        try:
+            image = Image.open("santasaude.png")
+            st.markdown("""
+            <div class="login-container">
+                <div class="login-header">
+            """, unsafe_allow_html=True)
             
-            usuario = st.text_input("Usuário", placeholder="Digite seu usuário")
-            senha = st.text_input("Senha", type="password", placeholder="Digite sua senha")
-            
-            login_button = st.button("Entrar", use_container_width=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+            # Centraliza a imagem
+            col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+            with col_img2:
+                st.image(image, 
+                         width=400,
+                         
+                         )
+           
+        except:
+            st.markdown("""
+            <div class="login-container">
+                <div class="login-header">
+                    <h1>🏥 Santa Saúde</h1>
+                    <p>Sistema de Movimentação de Caixa</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # Verificação de login
-        if login_button:
-            if usuario == "admin" and senha == "123":  # Substitua pelas suas credenciais
-                st.session_state['authenticated'] = True
-                st.success("Login realizado com sucesso!")
-                st.rerun()
-            else:
-                st.error("Usuário ou senha incorretos!")
-
+        # Formulário de login
+        with st.form("login_form"):
+            st.markdown("### 🔐 Acesso ao Sistema")
+            
+            usuario = st.text_input(
+                "👤 Usuário:",
+                placeholder="Digite seu usuário",
+                help="Use seu nome de usuário cadastrado"
+            )
+            
+            senha = st.text_input(
+                "🔑 Senha:",
+                type="password",
+                placeholder="Digite sua senha",
+                help="Digite sua senha de acesso"
+            )
+            
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+            
+            with col_btn2:
+                submit_button = st.form_submit_button(
+                    "🚀 Entrar no Sistema",
+                    use_container_width=True,
+                    type="primary"
+                )
+            
+            if submit_button:
+                if usuario and senha:
+                    try:
+                        usuarios = st.secrets["usuarios"]
+                    except KeyError:
+                        st.error("❌ Configuração de login não encontrada!")
+                        st.stop()
+                    
+                    # Verifica se o usuário existe e a senha está correta
+                    if usuario in usuarios and senha == usuarios[usuario]["senha"]:
+                        # Login bem-sucedido
+                        st.session_state['authenticated'] = True
+                        st.session_state['usuario_logado'] = usuario
+                        st.session_state['nome_completo'] = usuarios[usuario]["nome_completo"]
+                        
+                        st.success(f"✅ Bem-vindo, {usuarios[usuario]['nome_completo']}!")
+                        st.rerun()
+                        
+                    else:
+                        st.error("❌ Usuário ou senha incorretos!")
+                        st.warning("💡 Verifique suas credenciais e tente novamente")
+                        
+                else:
+                    st.warning("⚠️ Por favor, preencha usuário e senha")
+        
+        
 # Verifica se o usuário está autenticado
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     login()
