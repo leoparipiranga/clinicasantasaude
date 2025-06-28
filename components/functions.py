@@ -37,20 +37,9 @@ def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
         return False
 
 def salvar_dados(tipo):
-    """Função genérica para salvar dados de qualquer tipo (Reforço, Entrada, Saída)"""
-    if tipo == "Reforço":
-        arquivo = "reforco.csv"
-        colunas = ["data", "valor", "centro_custo", "forma_pagamento"]
-    elif tipo == "Entrada":
-        arquivo = "entrada.csv"
-        colunas = ["data", "conta", "detalhe", "banco", "valor"]
-    elif tipo == "Saída":
-        arquivo = "saida.csv"
-        colunas = ["data", "custo", "descricao", "detalhamento", "centro_custo", "forma_pagamento", "banco", "valor"]
-    else:
-        st.error("Tipo inválido!")
-        return False
-
+    arquivo = "movimentacoes.csv"
+    colunas = ["data", "tipo", "conta_origem", "conta_destino", "valor", "categoria", "subcategoria", "detalhamento"]
+    
     # Lê ou cria o arquivo
     url_csv = f"https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/{arquivo}"
     try:
@@ -58,8 +47,46 @@ def salvar_dados(tipo):
     except Exception:
         df_existente = pd.DataFrame(columns=colunas)
     
-    # Concatena com os dados temporários
-    df_final = pd.concat([df_existente, pd.DataFrame(st.session_state['linhas_temp'])], ignore_index=True)
+    # Transforma os dados temporários no formato unificado
+    linhas_unificadas = []
+    for linha in st.session_state['linhas_temp']:
+        if tipo == "Entrada":
+            nova_linha = {
+                "data": linha["data"],
+                "tipo": "Entrada",
+                "conta_origem": "",
+                "conta_destino": linha["banco"].upper() if linha["banco"] else "",  # Força maiúscula
+                "valor": linha["valor"],
+                "categoria": linha["conta"],
+                "subcategoria": linha["detalhe"],
+                "detalhamento": ""
+            }
+        elif tipo == "Saída":
+            nova_linha = {
+                "data": linha["data"],
+                "tipo": "Saída", 
+                "conta_origem": linha["banco"].upper() if linha["banco"] else "",  # Força maiúscula
+                "conta_destino": "",
+                "valor": linha["valor"],
+                "categoria": linha["custo"],
+                "subcategoria": linha["descricao"],
+                "detalhamento": linha["detalhamento"]
+            }
+        elif tipo == "Transferência":
+            nova_linha = {
+                "data": linha["data"],
+                "tipo": "Transferência",
+                "conta_origem": linha["origem"].upper() if linha["origem"] else "",  # Força maiúscula
+                "conta_destino": linha["destino"].upper() if linha["destino"] else "",  # Força maiúscula
+                "valor": linha["valor"],
+                "categoria": "",
+                "subcategoria": "",
+                "detalhamento": ""
+            }
+        linhas_unificadas.append(nova_linha)
+    
+    # Concatena com os dados existentes
+    df_final = pd.concat([df_existente, pd.DataFrame(linhas_unificadas)], ignore_index=True)
     
     # Remove linhas com valor zero
     df_final = df_final[df_final['valor'] != 0]
@@ -75,22 +102,12 @@ def salvar_dados(tipo):
     
     if sucesso:
         st.session_state['linhas_temp'] = []
-        st.session_state['dados_atualizados'] = True
-        st.success("Dados salvos com sucesso!")
-        
-        # Limpa o cache e força atualização
-        st.cache_data.clear()
-        
-        # Aguarda um pouco para o GitHub processar a atualização
-        import time
-        time.sleep(1)
-        
-        # Recarrega a aplicação
-        st.rerun()
-    else:
-        st.error("Erro ao salvar os dados!")
-        return False
+        # Força atualização dos KPIs
+        st.session_state['force_refresh'] = True
+    
+    return sucesso
 
+# @st.cache_data(ttl=180)
 def carregar_dados_github(arquivo):
     """Carrega dados diretamente da API do GitHub"""
     try:
@@ -106,6 +123,50 @@ def carregar_dados_github(arquivo):
     except:
         return pd.DataFrame()
     
+def registrar_entrada():
+    nova_linha = {
+        "data": st.session_state["data_input_entrada"],
+        "conta": st.session_state["conta_input"],
+        "detalhe": st.session_state["detalhe_input_entrada"],
+        "banco": st.session_state["banco_input_entrada"],
+        "valor": st.session_state["valor_input_entrada"]
+    }
+    st.session_state['linhas_temp'].append(nova_linha)
+    # Limpa o formulário
+    st.session_state["data_input_entrada"] = date.today()
+    st.session_state["conta_input"] = "Clinica"
+    st.session_state["detalhe_input_entrada"] = ""
+    st.session_state["banco_input_entrada"] = ""
+    st.session_state["valor_input_entrada"] = 0.0
+
+def limpar_form_entrada():
+    st.session_state["data_input_entrada"] = date.today()
+    st.session_state["conta_input"] = "Clinica"
+    st.session_state["detalhe_input_entrada"] = ""
+    st.session_state["banco_input_entrada"] = ""
+    st.session_state["valor_input_entrada"] = 0.0
+
+
+def registrar_transferencia():
+    nova_linha = {
+        "data": st.session_state["data_input_transferencia"],
+        "origem": st.session_state["origem_input"],
+        "destino": st.session_state["destino_input"],
+        "valor": st.session_state["valor_input_transferencia"]
+    }
+    st.session_state['linhas_temp'].append(nova_linha)
+    # Limpa o formulário
+    st.session_state["data_input_transferencia"] = date.today()
+    st.session_state["origem_input"] = "DINHEIRO"
+    st.session_state["destino_input"] = "SANTANDER"
+    st.session_state["valor_input_transferencia"] = 0.0
+
+def limpar_form_transferencia():
+    st.session_state["data_input_transferencia"] = date.today()
+    st.session_state["origem_input"] = "DINHEIRO"
+    st.session_state["destino_input"] = "SANTANDER"
+    st.session_state["valor_input_transferencia"] = 0.0
+
 def limpar_form_saida():
     st.session_state["data_saida"] = date.today()
     st.session_state["custo_saida"] = "Fixo"
