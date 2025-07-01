@@ -127,14 +127,15 @@ st.title("Movimentação de Caixa")
 def calcular_saldos():
     # Saldos iniciais
     saldos_iniciais = {
-        "DINHEIRO": 1000.00,
-        "SANTANDER": 5000.00,
-        "BANESE": 2000.00,
-        "C6": 1500.00,
+        "DINHEIRO": 1255.40,
+        "SANTANDER": 500.18,
+        "BANESE": 212.47,
+        "C6": 0.00,
         "CAIXA": 0.00,
         "BNB": 0.00,
         "MULVI": 0.00,
-        "MERCADO PAGO": 0.00
+        "MERCADO PAGO": 0.00,
+        "CONTA PIX": 0.65,
     }
     
     # Carrega movimentações
