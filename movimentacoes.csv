@@ -1,4 +1,4 @@
 data, tipo, conta_origem, conta_destino, valor, categoria, subcategoria, detalhamento,tipo,conta_origem,conta_destino,valor,categoria,subcategoria,detalhamento
 2025-07-01,,,,,,,,Saída,SANTANDER,,813.31,Investimentos,CARTÃO SANDRO,
 2025-07-01,,,,,,,,Saída,SANTANDER,,436.4,"Impostos, Taxas e Conselhos",TAXAS (JUROS DE CHEQUE ESPECIAL),
-2025-07-01,,,,,,,,Entrada,,DINHEIRO,430.0,Clinica,Dinheiro,
+2025-07-01,,,,,,,,Entrada,,DINHEIRO,36.0,Laboratorio,Dinheiro,
