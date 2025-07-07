@@ -281,7 +281,7 @@ descricoes_dict = {
 
 centros_custo = ["Rateio", "Clínica", "Laboratório"]
 formas_pagamento = ["Dinheiro", "Pix", "Débito", "Crédito", "Taxa Antecipação"]
-bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO"]
+bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO", "DINHEIRO"]
 
 # Carrega descrições personalizadas do GitHub (se existirem)
 descricoes_extras = carregar_descricoes_personalizadas()
