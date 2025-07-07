@@ -331,7 +331,7 @@ with aba[0]:
                 st.selectbox("Banco", ["DINHEIRO"], key="banco_input_entrada", disabled=True)
                 banco = "DINHEIRO"
             else:
-                bancos_disponiveis = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO"]
+                bancos_disponiveis = ["CONTA JÚLIO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO"]
                 banco = st.selectbox("Banco", bancos_disponiveis, key="banco_input_entrada")
         
         col4, col5 = st.columns(2)
