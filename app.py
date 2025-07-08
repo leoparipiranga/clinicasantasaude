@@ -385,7 +385,7 @@ with aba[0]:
         
         col4, col5 = st.columns(2)
         with col4:
-            data = st.date_input("Data", value=date.today(), key="data_input_entrada")
+            data = st.date_input("Data", key="data_input_entrada")
         with col5:
             valor = st.number_input("Valor", step=0.01, format="%.2f", key="valor_input_entrada")
 
