@@ -324,7 +324,7 @@ descricoes_dict = {
 
 centros_custo = ["Rateio", "Clínica", "Laboratório"]
 formas_pagamento = ["Dinheiro", "Pix", "Débito", "Crédito", "Taxa Antecipação"]
-bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO", "DINHEIRO"]
+bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA PIX", "DINHEIRO"]
 
 # Carrega descrições personalizadas do GitHub (se existirem)
 descricoes_extras = carregar_descricoes_personalizadas()
@@ -380,7 +380,7 @@ with aba[0]:
                 st.selectbox("Banco", ["DINHEIRO"], key="banco_input_entrada", disabled=True)
                 banco = "DINHEIRO"
             else:
-                bancos_disponiveis = ["CONTA JÚLIO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO"]
+                bancos_disponiveis = ["CONTA PIX", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO"]
                 banco = st.selectbox("Banco", bancos_disponiveis, key="banco_input_entrada")
         
         col4, col5 = st.columns(2)
@@ -433,6 +433,8 @@ with aba[0]:
         
         # Lógica do Banco baseada na Forma de Pagamento
         if forma_pagamento == "Dinheiro":
+            # Força o valor no session_state antes de criar o widget
+            st.session_state["banco_saida"] = "DINHEIRO"
             st.selectbox("Banco", ["DINHEIRO"], key="banco_saida", disabled=True)
             banco = "DINHEIRO"
         else:
@@ -456,7 +458,7 @@ with aba[0]:
                     st.rerun()
     elif tipo == "Transferência":
         # Lista de bancos/contas disponíveis
-        bancos_contas = ["DINHEIRO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO"]
+        bancos_contas = ["DINHEIRO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA PIX"]
         
         col1, col2 = st.columns(2)
         with col1:
