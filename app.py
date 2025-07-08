@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
 import io
 import base64
 import requests
@@ -489,7 +489,6 @@ with aba[1]:
     tipos = ["Entrada", "Saída", "Transferência"]
     tipo = st.radio("Tipo", tipos, horizontal=True, key="tipo_alteracao")
 
-    # Agora sempre usa o arquivo único
     arquivo = "movimentacoes.csv"
     col_data = "data"
 
@@ -500,7 +499,6 @@ with aba[1]:
         st.warning("Arquivo ainda não existe ou está vazio.")
 
     if not df.empty:
-        # Filtra apenas o tipo selecionado
         df_tipo = df[df['tipo'] == tipo].copy()
         
         if df_tipo.empty:
@@ -510,18 +508,21 @@ with aba[1]:
             data_min = df_tipo[col_data].min()
             data_max = date.today()
             
+            # Valores padrão específicos para Alteração Manual
             hoje = date.today()
-            data_min_padrao = hoje.replace(day=1)
-            data_max_padrao = hoje
+            data_min_padrao_alt = hoje - timedelta(days=30)  # 30 dias atrás
+            data_max_padrao_alt = hoje
             
-            value_ini = min(max(data_min, data_min_padrao), data_max)
-            value_fim = max(min(data_max, data_max_padrao), data_min)
+            # Inicializa session state para Alteração Manual
+            if "alt_data_ini" not in st.session_state:
+                st.session_state["alt_data_ini"] = max(data_min_padrao_alt, data_min)
+            if "alt_data_fim" not in st.session_state:
+                st.session_state["alt_data_fim"] = min(data_max_padrao_alt, data_max)
             
             col1, col2 = st.columns(2)
             with col1:
                 data_ini = st.date_input(
                     "Data inicial",
-                    value=value_ini,
                     min_value=data_min,
                     max_value=data_max,
                     key="alt_data_ini"
@@ -529,7 +530,6 @@ with aba[1]:
             with col2:
                 data_fim = st.date_input(
                     "Data final",
-                    value=value_fim,
                     min_value=data_min,
                     max_value=data_max,
                     key="alt_data_fim"
@@ -605,7 +605,6 @@ with aba[2]:
     if df.empty:
         st.warning("Arquivo ainda não existe ou está vazio.")
     else:
-        # Filtra pelo tipo selecionado
         df_filtrado = df[df['tipo'] == tipo_sel].copy()
         
         if df_filtrado.empty:
@@ -615,12 +614,22 @@ with aba[2]:
             data_min = df_filtrado['data'].min()
             data_max = df_filtrado['data'].max()
             
-            # Filtros de data
+            # Valores padrão específicos para Ver Tabela
+            hoje = date.today()
+            data_min_padrao_vis = hoje - timedelta(days=30)  # 30 dias atrás
+            data_max_padrao_vis = hoje
+            
+            # Inicializa session state para Ver Tabela
+            if "vis_data_ini" not in st.session_state:
+                st.session_state["vis_data_ini"] = max(data_min_padrao_vis, data_min)
+            if "vis_data_fim" not in st.session_state:
+                st.session_state["vis_data_fim"] = min(data_max_padrao_vis, data_max)
+
             col1, col2 = st.columns(2)
             with col1:
-                data_ini = st.date_input("Data inicial", value=data_min, min_value=data_min, max_value=data_max, key="vis_data_ini")
+                data_ini = st.date_input("Data inicial", min_value=data_min, max_value=data_max, key="vis_data_ini")
             with col2:
-                data_fim = st.date_input("Data final", value=data_max, min_value=data_min, max_value=data_max, key="vis_data_fim")
+                data_fim = st.date_input("Data final", min_value=data_min, max_value=data_max, key="vis_data_fim")
 
             # Aplica filtro de data
             mask = (df_filtrado['data'] >= data_ini) & (df_filtrado['data'] <= data_fim)
