@@ -8,11 +8,20 @@ import pandas as pd
 from datetime import date
 
 def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
+    import time
+    from datetime import datetime
+    
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False)
     content_b64 = base64.b64encode(csv_buffer.getvalue().encode()).decode()
+    
     url = f"https://api.github.com/repos/{repo}/contents/{path}"
     headers = {"Authorization": f"token {token}"}
+    
+    # Adiciona timestamp à mensagem para forçar commit único
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    mensagem_timestamped = f"{mensagem} - {timestamp}"
+    
     r = requests.get(url, headers=headers)
     if r.status_code == 200:
         sha = r.json()["sha"]
@@ -21,13 +30,15 @@ def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
     else:
         st.error(f"Erro ao obter SHA do arquivo: {r.text}")
         return False
+    
     data = {
-        "message": mensagem,
+        "message": mensagem_timestamped,
         "content": content_b64,
         "branch": branch
     }
     if sha:
         data["sha"] = sha
+    
     r = requests.put(url, headers=headers, json=data)
     if r.status_code in [200, 201]:
         st.success("Arquivo atualizado no GitHub!")
@@ -36,16 +47,34 @@ def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
         st.error(f"Erro ao atualizar: {r.text}")
         return False
 
+def carregar_dados_github_api(arquivo, token, repo):
+    """Carrega dados diretamente via API do GitHub (sem cache)"""
+    url = f"https://api.github.com/repos/{repo}/contents/{arquivo}"
+    headers = {"Authorization": f"token {token}"}
+    
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        content = r.json()["content"]
+        decoded_content = base64.b64decode(content).decode('utf-8')
+        from io import StringIO
+        return pd.read_csv(StringIO(decoded_content))
+    elif r.status_code == 404:
+        # Arquivo não existe, retorna DataFrame vazio
+        return pd.DataFrame(columns=["data", "tipo", "conta_origem", "conta_destino", "valor", "categoria", "subcategoria", "detalhamento"])
+    else:
+        st.error(f"Erro ao carregar arquivo: {r.text}")
+        return pd.DataFrame()
+    
 def salvar_dados(tipo):
     arquivo = "movimentacoes.csv"
-    colunas = ["data", "tipo", "conta_origem", "conta_destino", "valor", "categoria", "subcategoria", "detalhamento"]
     
-    # Lê ou cria o arquivo
-    url_csv = f"https://raw.githubusercontent.com/leoparipiranga/clinicasantasaude/main/{arquivo}"
-    try:
-        df_existente = pd.read_csv(url_csv)
-    except Exception:
-        df_existente = pd.DataFrame(columns=colunas)
+    # Lê dados diretamente via API (sem cache)
+    df_existente = carregar_dados_github_api(
+        arquivo, 
+        st.secrets["github"]["github_token"], 
+        "leoparipiranga/clinicasantasaude"
+    )
+    
     
     # Transforma os dados temporários no formato unificado
     linhas_unificadas = []
@@ -102,8 +131,11 @@ def salvar_dados(tipo):
     
     if sucesso:
         st.session_state['linhas_temp'] = []
-        # Força atualização dos KPIs
-        st.session_state['force_refresh'] = True
+        # Força limpeza total do cache
+        st.cache_data.clear()
+        # Adiciona um pequeno delay para garantir sincronização
+        import time
+        time.sleep(2)
     
     return sucesso
 

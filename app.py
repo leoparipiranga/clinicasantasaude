@@ -10,7 +10,8 @@ from components.functions import (
     atualizar_csv_github_df, 
     salvar_dados, 
     registrar_saida, 
-    carregar_dados_github,  # <-- Esta linha já existe
+    carregar_dados_github,
+    carregar_dados_github_api,  
     carregar_descricoes_personalizadas, 
     salvar_nova_descricao, 
     registrar_entrada, 
@@ -138,8 +139,13 @@ def calcular_saldos():
         "CONTA PIX": 0.65,
     }
     
-    # Carrega movimentações
-    df = carregar_dados_github("movimentacoes.csv")
+    # Carrega movimentações via API (sem cache)
+    from components.functions import carregar_dados_github_api
+    df = carregar_dados_github_api(
+        "movimentacoes.csv",
+        st.secrets["github"]["github_token"],
+        "leoparipiranga/clinicasantasaude"
+    )
     saldos_atuais = saldos_iniciais.copy()
     
     if not df.empty:
@@ -166,7 +172,7 @@ with col_saldo2:
 saldos = calcular_saldos()
 
 # Remove Conta Júlio e reorganiza em 4 colunas x 2 linhas
-contas_exibir = ["DINHEIRO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO"]
+contas_exibir = ["DINHEIRO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO","CONTA PIX"]
 
 # CSS para estilizar as caixinhas
 st.markdown("""
@@ -177,13 +183,31 @@ st.markdown("""
     border-radius: 8px;
     padding: 10px;
     text-align: center;
-    margin: 5px 0;
+    margin: 2px 0;  /* Reduzido de 5px para 2px */
+}
+.saldo-box-duplo {
+    border: 2px solid #1f4e79;
+    background-color: #e6f2ff;
+    border-radius: 8px;
+    padding: 20px 10px;
+    text-align: center;
+    margin: 2px 0;  /* Reduzido de 5px para 2px */
+    height: 152px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 .saldo-titulo {
     font-size: 14px;
     font-weight: bold;
     color: #1f4e79;
     margin-bottom: 2px;
+}
+.saldo-titulo-duplo {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-bottom: 5px;
 }
 .saldo-valor {
     font-size: 16px;
@@ -199,37 +223,56 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Primeira linha - 4 colunas
-cols1 = st.columns(4)
-for j, conta in enumerate(contas_exibir[:4]):
-    saldo = saldos[conta]
-    cor_classe = "saldo-positivo" if saldo >= 0 else "saldo-negativo"
-    icone = "🟢" if saldo >= 0 else "🔴"
+# Layout: 5 colunas em uma única linha
+cols = st.columns([1, 1, 1, 1, 1])
+
+# Primeira coluna - DINHEIRO (altura dupla)
+saldo_dinheiro = saldos["DINHEIRO"]
+cor_classe = "saldo-positivo" if saldo_dinheiro >= 0 else "saldo-negativo"
+icone = "🟢" if saldo_dinheiro >= 0 else "🔴"
+
+with cols[0]:
+    st.markdown(f"""
+    <div class="saldo-box-duplo">
+        <div class="saldo-titulo-duplo">{icone} CAIXA FÍSICO<br>(DINHEIRO)</div>
+        <div class="saldo-valor {cor_classe}">R$ {saldo_dinheiro:,.2f}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Outras 4 colunas - duas caixas empilhadas em cada
+outros_bancos = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA PIX"]
+
+for j in range(4):  # Colunas 1-4
+    banco_top = outros_bancos[j]  # Primeira linha
+    banco_bottom = outros_bancos[j+4]  # Segunda linha
     
-    with cols1[j]:
+    with cols[j+1]:
+        # Caixa superior
+        saldo = saldos[banco_top]
+        cor_classe = "saldo-positivo" if saldo >= 0 else "saldo-negativo"
+        icone = "🟢" if saldo >= 0 else "🔴"
+        
         st.markdown(f"""
         <div class="saldo-box">
-            <div class="saldo-titulo">{icone} {conta}</div>
+            <div class="saldo-titulo">{icone} {banco_top}</div>
             <div class="saldo-valor {cor_classe}">R$ {saldo:,.2f}</div>
         </div>
         """, unsafe_allow_html=True)
-
-# Segunda linha - 4 colunas
-cols2 = st.columns(4)
-for j, conta in enumerate(contas_exibir[4:]):
-    saldo = saldos[conta]
-    cor_classe = "saldo-positivo" if saldo >= 0 else "saldo-negativo"
-    icone = "🟢" if saldo >= 0 else "🔴"
-    
-    with cols2[j]:
+        
+        # Caixa inferior
+        saldo = saldos[banco_bottom]
+        cor_classe = "saldo-positivo" if saldo >= 0 else "saldo-negativo"
+        icone = "🟢" if saldo >= 0 else "🔴"
+        
+        # Texto customizado para MERCADO PAGO
+        nome_exibicao = "M. PAGO" if banco_bottom == "MERCADO PAGO" else banco_bottom
+        
         st.markdown(f"""
         <div class="saldo-box">
-            <div class="saldo-titulo">{icone} {conta}</div>
+            <div class="saldo-titulo">{icone} {nome_exibicao}</div>
             <div class="saldo-valor {cor_classe}">R$ {saldo:,.2f}</div>
         </div>
         """, unsafe_allow_html=True)
-
-st.divider()  # Linha separadora
 
 hoje = date.today()
 data_min_padrao = hoje.replace(day=1)
@@ -303,6 +346,12 @@ with aba[0]:
 
     # --- ENTRADA ---
     if tipo == "Entrada":
+        # Inicializa valores padrão se não existirem
+        if "data_input_entrada" not in st.session_state:
+            st.session_state["data_input_entrada"] = date.today()
+        if "valor_input_entrada" not in st.session_state:
+            st.session_state["valor_input_entrada"] = 0.0
+        
         contas = ["Clinica", "Laboratorio", "Convenios"]
         bancos_convenio = {
             "SESI": "SANTANDER",
@@ -347,7 +396,9 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="inserir_editor_entrada")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                salvar_dados("Entrada")
+                sucesso = salvar_dados("Entrada")
+                if sucesso:
+                    st.rerun()
         
     elif tipo == "Saída":
         
@@ -379,7 +430,14 @@ with aba[0]:
             centro_custo = st.selectbox("Centro de Custo", centros_custo, key="centro_saida")
         with col4:
             forma_pagamento = st.selectbox("Forma de Pagamento", formas_pagamento, key="forma_saida")
-        banco = st.selectbox("Banco", bancos, key="banco_saida")
+        
+        # Lógica do Banco baseada na Forma de Pagamento
+        if forma_pagamento == "Dinheiro":
+            st.selectbox("Banco", ["DINHEIRO"], key="banco_saida", disabled=True)
+            banco = "DINHEIRO"
+        else:
+            banco = st.selectbox("Banco", bancos, key="banco_saida")
+        
         col5, col6 = st.columns(2)
         with col5:
             data = st.date_input("Data", key="data_saida")
@@ -393,7 +451,9 @@ with aba[0]:
             editado = st.data_editor(df_temp, num_rows="dynamic", use_container_width=True, hide_index=True, key="inserir_editor_saida")
             st.session_state['linhas_temp'] = editado.to_dict('records')
             if st.button("Salvar"):
-                salvar_dados("Saída")
+                sucesso = salvar_dados("Saída")
+                if sucesso:
+                    st.rerun()
     elif tipo == "Transferência":
         # Lista de bancos/contas disponíveis
         bancos_contas = ["DINHEIRO", "SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MULVI", "MERCADO PAGO", "CONTA JÚLIO"]
@@ -433,7 +493,9 @@ with aba[1]:
     arquivo = "movimentacoes.csv"
     col_data = "data"
 
-    df = carregar_dados_github(arquivo)
+    df = carregar_dados_github_api(arquivo, 
+        st.secrets["github"]["github_token"], 
+        "leoparipiranga/clinicasantasaude")
     if df.empty:
         st.warning("Arquivo ainda não existe ou está vazio.")
 
@@ -488,10 +550,34 @@ with aba[1]:
                 if "_deleted" in editado.columns:
                     editado = editado[~editado["_deleted"]].drop(columns=["_deleted"])
                 
-                # Remove as linhas do período selecionado do DataFrame original
-                df_restante = df[~((df['tipo'] == tipo) & (df[col_data].isin(df_periodo[col_data])))]
+                # Carrega dados atuais via API (sem cache)
+                from components.functions import carregar_dados_github_api
+                df_atual = carregar_dados_github_api(
+                    "movimentacoes.csv",
+                    st.secrets["github"]["github_token"],
+                    "leoparipiranga/clinicasantasaude"
+                )
+                
+                # Padroniza as datas
+                editado[col_data] = pd.to_datetime(editado[col_data])
+                df_atual[col_data] = pd.to_datetime(df_atual[col_data])
+                
+                # CONVERTE as datas do filtro para datetime para comparação
+                data_ini_dt = pd.to_datetime(data_ini)
+                data_fim_dt = pd.to_datetime(data_fim)
+                
+                # Remove TODAS as linhas do tipo selecionado que estavam no período
+                mask_remover = (df_atual['tipo'] == tipo) & (df_atual[col_data] >= data_ini_dt) & (df_atual[col_data] <= data_fim_dt)
+                df_restante = df_atual[~mask_remover]
+                
+                # Adiciona apenas as linhas editadas (não excluídas)
                 df_final = pd.concat([df_restante, editado], ignore_index=True)
+                
+                # Ordena com datetime
                 df_final = df_final.sort_values(by=col_data)
+                
+                # Converte para string para salvar
+                df_final[col_data] = df_final[col_data].dt.strftime('%Y-%m-%d')
                 
                 atualizar_csv_github_df(
                     df_final,
@@ -501,6 +587,7 @@ with aba[1]:
                     mensagem="Atualiza movimentacoes.csv via Streamlit"
                 )
                 st.success("Alterações salvas com sucesso!")
+                st.rerun()
     else:
         st.info("Nenhum dado disponível para alteração.")
 
@@ -511,7 +598,9 @@ with aba[2]:
     tipo_sel = st.radio("Tipo", tipos, horizontal=True, key="vis_tipo")
     
     arquivo = "movimentacoes.csv"
-    df = carregar_dados_github(arquivo)
+    df = carregar_dados_github_api(arquivo, 
+        st.secrets["github"]["github_token"], 
+        "leoparipiranga/clinicasantasaude")
     
     if df.empty:
         st.warning("Arquivo ainda não existe ou está vazio.")
