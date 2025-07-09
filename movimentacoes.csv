@@ -1,1 +1,5 @@
-data, tipo, conta_origem, conta_destino, valor, categoria, subcategoria, detalhamento
+data, tipo, conta_origem, conta_destino, valor, categoria, subcategoria, detalhamento,tipo,conta_origem,conta_destino,valor,categoria,subcategoria,detalhamento
+2025-07-01,,,,,,,,Entrada,,DINHEIRO,430.0,Clinica,Dinheiro,
+2025-07-01,,,,,,,,Entrada,,CONTA PIX,1344.0,Clinica,Pix,
+2025-07-01,,,,,,,,Entrada,,DINHEIRO,36.0,Laboratorio,Dinheiro,
+2025-07-01,,,,,,,,Entrada,,CONTA PIX,247.56,Laboratorio,Pix,
