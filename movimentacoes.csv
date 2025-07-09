@@ -3,3 +3,7 @@ data, tipo, conta_origem, conta_destino, valor, categoria, subcategoria, detalha
 2025-07-01,,,,,,,,Entrada,,CONTA PIX,1344.0,Clinica,Pix,
 2025-07-01,,,,,,,,Entrada,,DINHEIRO,36.0,Laboratorio,Dinheiro,
 2025-07-01,,,,,,,,Entrada,,CONTA PIX,247.56,Laboratorio,Pix,
+2025-07-01,,,,,,,,Saída,DINHEIRO,,180.0,Comissões,ESTORNO / TROCO,DEVOLUÇÃO PACIENTE
+2025-07-01,,,,,,,,Saída,DINHEIRO,,120.0,Variável,MANUTENÇÃO - PREDIO E EQUIPAMENTOS,RECARGA EXTINTORES
+2025-07-01,,,,,,,,Saída,DINHEIRO,,744.0,Comissões,COMISSÕES MÉDICAS,DRA ISADORA
+2025-07-01,,,,,,,,Saída,DINHEIRO,,360.0,Comissões,COMISSÕES MÉDICAS,DR JORGE
