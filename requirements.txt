@@ -4,3 +4,35 @@ datetime
 numpy
 matplotlib
 seaborn
+
+# Framework principal da aplicação web
+streamlit
+streamlit-modal
+
+# Manipulação e análise de dados
+pandas
+pickle
+
+# Leitura de arquivos PDF (para extratos de convênio)
+pdfplumber
+
+# Dependência do Pandas para ler arquivos Excel .xlsx
+openpyxl
+
+# Dependência do Pandas para ler arquivos Excel .xls
+xlrd
+
+# Dependência do Pandas para processar arquivos .xls que são, na verdade, HTML
+lxml
+
+# Visualização de dados
+matplotlib
+seaborn
+plotly
+
+# Manipulação de texto
+requests
+re
+
+# Visualização de imagens
+PIL
