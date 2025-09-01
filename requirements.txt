@@ -1,28 +1,17 @@
-streamlit
-pandas
-datetime
-numpy
-matplotlib
-seaborn
-
 # Framework principal da aplicação web
 streamlit
 
 # Manipulação e análise de dados
 pandas
-pickle
+numpy
 
 # Leitura de arquivos PDF (para extratos de convênio)
 pdfplumber
 
-# Dependência do Pandas para ler arquivos Excel .xlsx
-openpyxl
-
-# Dependência do Pandas para ler arquivos Excel .xls
-xlrd
-
-# Dependência do Pandas para processar arquivos .xls que são, na verdade, HTML
-lxml
+# Dependências do Pandas para ler arquivos Excel
+openpyxl # Para .xlsx
+xlrd     # Para .xls
+lxml     # Para .xls que são HTML
 
 # Visualização de dados
 matplotlib
