@@ -1,8 +1,6 @@
 # Framework principal da aplicação web
 streamlit
 streamlit-modal
-streamlit-options-menu
-streamlit-aggrid
 
 # Manipulação e análise de dados
 pandas
