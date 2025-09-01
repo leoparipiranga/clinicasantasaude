@@ -1,11 +1,12 @@
 # components/functions.py
 
 import io
+import os
 import base64
 import requests
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 
 def atualizar_csv_github_df(df, token, repo, path, mensagem, branch="main"):
     import time
@@ -178,20 +179,153 @@ def limpar_form_entrada():
     st.session_state["banco_input_entrada"] = ""
     st.session_state["valor_input_entrada"] = 0.0
 
+def carregar_movimentacao_contas():
+    """
+    Carrega o DataFrame de movimentação de contas a partir do arquivo pickle.
+    Retorna um DataFrame vazio se o arquivo não existir ou se ocorrer um erro.
+    """
+    caminho_arquivo = 'data/movimentacao_contas.pkl'
+    try:
+        if os.path.exists(caminho_arquivo):
+            df = pd.read_pickle(caminho_arquivo)
+            # Garante que a coluna de data está no formato correto para ordenação
+            if 'data_cadastro' in df.columns:
+                df['data_cadastro'] = pd.to_datetime(df['data_cadastro'], errors='coerce')
+            return df
+        else:
+            # Retorna um DataFrame vazio com as colunas esperadas para evitar erros
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erro ao carregar o arquivo movimentacao_contas.pkl: {e}")
+        return pd.DataFrame()
 
-def registrar_transferencia():
-    nova_linha = {
-        "data": st.session_state["data_input_transferencia"],
-        "origem": st.session_state["origem_input"],
-        "destino": st.session_state["destino_input"],
-        "valor": st.session_state["valor_input_transferencia"]
-    }
-    st.session_state['linhas_temp'].append(nova_linha)
-    # Limpa o formulário
-    st.session_state["data_input_transferencia"] = date.today()
-    st.session_state["origem_input"] = "DINHEIRO"
-    st.session_state["destino_input"] = "SANTANDER"
-    st.session_state["valor_input_transferencia"] = 0.0
+def calcular_saldos_contas():
+    """
+    Calcula os saldos de todas as contas baseado no arquivo movimentacao_contas.pkl
+    Considera ENTRADA como positivo e SAIDA como negativo
+    """
+    df = carregar_movimentacao_contas()
+    
+    if df.empty or 'conta' not in df.columns:
+        return {}
+    
+    saldos = {}
+    
+    # Agrupa por conta e calcula o saldo
+    for conta in df['conta'].dropna().unique():
+        df_conta = df[df['conta'] == conta]
+        
+        saldo_total = 0
+        for _, row in df_conta.iterrows():
+            valor = float(row.get('pago', 0))
+            tipo = row.get('tipo', '')
+            
+            # CORREÇÃO: Se tem coluna 'tipo', usa ela para determinar se soma ou subtrai
+            if 'tipo' in df.columns and pd.notna(row.get('tipo')):
+                if tipo == 'ENTRADA':
+                    saldo_total += valor
+                elif tipo == 'SAIDA':
+                    saldo_total -= valor
+            else:
+                # Fallback: se não tem coluna tipo, assume que valores positivos são entrada
+                saldo_total += valor
+        
+        saldos[conta] = saldo_total
+    
+    return saldos
+
+def limpar_form_transferencia():
+    """Limpa os campos do formulário de transferência"""
+    if "data_input_transferencia" in st.session_state:
+        st.session_state["data_input_transferencia"] = date.today()
+    if "origem_input" in st.session_state:
+        st.session_state["origem_input"] = "DINHEIRO"
+    if "destino_input" in st.session_state:
+        st.session_state["destino_input"] = "SANTANDER"
+    if "valor_input_transferencia" in st.session_state:
+        st.session_state["valor_input_transferencia"] = 0.0
+    if "observacoes_input_transferencia" in st.session_state:
+        st.session_state["observacoes_input_transferencia"] = ""
+        
+def registrar_transferencia(data, conta_origem, conta_destino, valor, motivo, descricao, observacoes, taxa=0.0):
+    """
+    Registra uma transferência entre contas, criando duas entradas no
+    movimentacao_contas.pkl. A saída é registrada com valor negativo.
+    """
+    try:
+        caminho_arquivo = 'data/movimentacao_contas.pkl'
+        
+        if os.path.exists(caminho_arquivo):
+            df = pd.read_pickle(caminho_arquivo)
+        else:
+            df = pd.DataFrame(columns=[
+                'data_cadastro', 'tipo', 'categoria_pagamento', 'subcategoria_pagamento', 
+                'pago', 'conta', 'descricao', 'observacoes', 'id_transferencia',
+                'paciente', 'medico', 'forma_pagamento', 'convenio', 'servicos', 'origem'
+            ])
+
+        id_transferencia = f"transf_{int(datetime.now().timestamp())}"
+
+        colunas_nulas = {
+            'paciente': None, 'medico': None, 'forma_pagamento': None, 
+            'convenio': None, 'servicos': None, 'origem': 'TRANSFERENCIA'
+        }
+
+        # Registro de SAÍDA da conta de origem (com valor NEGATIVO)
+        saida = {
+            'data_cadastro': pd.to_datetime(data),
+            'tipo': 'SAIDA',
+            'categoria_pagamento': 'TRANSFERENCIA',
+            'subcategoria_pagamento': motivo,
+            'pago': -abs(float(valor)),  # CORREÇÃO: Valor negativo para a saída
+            'conta': conta_origem,
+            'descricao': f"Transferência para {conta_destino}",
+            'observacoes': observacoes,
+            'id_transferencia': id_transferencia,
+            **colunas_nulas
+        }
+
+        # Registro de ENTRADA na conta de destino (com valor POSITIVO)
+        valor_liquido = float(valor) - float(taxa)
+        entrada = {
+            'data_cadastro': pd.to_datetime(data),
+            'tipo': 'ENTRADA',
+            'categoria_pagamento': 'TRANSFERENCIA',
+            'subcategoria_pagamento': motivo,
+            'pago': abs(valor_liquido), # Garante que o valor de entrada é positivo
+            'conta': conta_destino,
+            'descricao': f"Transferência de {conta_origem}",
+            'observacoes': observacoes,
+            'id_transferencia': id_transferencia,
+            **colunas_nulas
+        }
+        
+        registros_a_adicionar = [saida, entrada]
+
+        if taxa > 0:
+            taxa_registro = {
+                'data_cadastro': pd.to_datetime(data),
+                'tipo': 'SAIDA',
+                'categoria_pagamento': 'DESPESAS OPERACIONAIS',
+                'subcategoria_pagamento': 'TAXAS BANCÁRIAS',
+                'pago': -abs(float(taxa)), # CORREÇÃO: Taxa também é uma saída negativa
+                'conta': conta_origem,
+                'descricao': f"Taxa de transferência de {conta_origem} para {conta_destino}",
+                'observacoes': observacoes,
+                'id_transferencia': id_transferencia,
+                **colunas_nulas
+            }
+            registros_a_adicionar.append(taxa_registro)
+
+        novos_registros = pd.DataFrame(registros_a_adicionar)
+        df_atualizado = pd.concat([df, novos_registros], ignore_index=True)
+        df_atualizado.to_pickle(caminho_arquivo)
+        
+        return True
+
+    except Exception as e:
+        st.error(f"Erro ao registrar transferência na função: {e}")
+        return False
 
 def limpar_form_transferencia():
     st.session_state["data_input_transferencia"] = date.today()
@@ -209,19 +343,71 @@ def limpar_form_saida():
     st.session_state["banco_saida"] = "SANTANDER"
     st.session_state["valor_saida"] = 0.0
 
-def registrar_saida():
-    nova_linha = {
-        "data": st.session_state["data_saida"],
-        "custo": st.session_state["custo_saida"],
-        "descricao": st.session_state["descricao_saida"],
-        "detalhamento": st.session_state["detalhamento_saida"],
-        "centro_custo": st.session_state["centro_saida"],
-        "forma_pagamento": st.session_state["forma_saida"],
-        "banco": st.session_state["banco_saida"],
-        "valor": st.session_state["valor_saida"]
-    }
-    st.session_state['linhas_temp'].append(nova_linha)
-    limpar_form_saida()
+def registrar_saida(data, categoria, subcategoria, valor, conta_origem, observacoes):
+    """
+    Registra uma nova transação de saída (pagamento) no arquivo movimentacao_contas.pkl.
+
+    Args:
+        data (datetime.date): Data da transação.
+        categoria (str): Categoria do pagamento.
+        subcategoria (str): Subcategoria do pagamento.
+        valor (float): Valor do pagamento (deve ser positivo).
+        conta_origem (str): Nome da conta de onde o dinheiro saiu.
+        observacoes (str): Observações adicionais.
+
+    Returns:
+        bool: True se a operação foi bem-sucedida, False caso contrário.
+    """
+    caminho_arquivo = 'data/movimentacao_contas.pkl'
+
+    try:
+        # --- 1. Carregar o DataFrame de movimentações ---
+        if os.path.exists(caminho_arquivo):
+            df_movimentacao = pd.read_pickle(caminho_arquivo)
+        else:
+            # Se o arquivo não existe, a operação não pode continuar, pois não há contas para debitar.
+            # A função inicializar_movimentacao_contas() deve ser chamada em outro lugar.
+            print(f"ERRO: Arquivo '{caminho_arquivo}' não encontrado. Execute a inicialização primeiro.")
+            return False
+
+        # --- 2. Preparar o novo registro de pagamento ---
+        # O valor é registrado como negativo, pois é uma SAÍDA.
+        valor_saida = -abs(float(valor))
+
+        novo_pagamento = {
+            'data_cadastro': pd.to_datetime(data),
+            'paciente': 'PAGAMENTO',  # Identificador para transações de pagamento
+            'medico': '',
+            'forma_pagamento': 'DÉBITO', # Identifica como uma saída
+            'convenio': '',
+            'servicos': subcategoria, # Usa a subcategoria para descrever o serviço/produto pago
+            'origem': 'SISTEMA',
+            'pago': valor_saida,
+            'conta': conta_origem,
+            'categoria_pagamento': categoria,
+            'subcategoria_pagamento': subcategoria,
+            'observacoes': observacoes
+        }
+        
+        df_novo_pagamento = pd.DataFrame([novo_pagamento])
+
+        # --- 3. Garantir que todas as colunas existam no DataFrame principal ---
+        for col in df_novo_pagamento.columns:
+            if col not in df_movimentacao.columns:
+                df_movimentacao[col] = pd.NA # Adiciona a coluna com valores nulos se não existir
+
+        # --- 4. Adicionar o pagamento ao histórico e salvar ---
+        df_atualizado = pd.concat([df_movimentacao, df_novo_pagamento], ignore_index=True)
+        
+        # Salva o arquivo atualizado
+        df_atualizado.to_pickle(caminho_arquivo)
+        
+        print(f"Pagamento de R${valor:.2f} registrado com sucesso na conta '{conta_origem}'.")
+        return True
+
+    except Exception as e:
+        print(f"ERRO ao registrar saída: {e}")
+        return False
 
 
 def salvar_nova_descricao(custo, descricao):
