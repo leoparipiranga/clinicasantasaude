@@ -216,7 +216,7 @@ def main():
 
         print("\nResumo rápido das primeiras linhas:")
         pd.set_option("display.max_columns", 50)
-        pd.set_option("display.width", 200)
+        pd.set_option("display.use_container_width", 200)
         for i, df in enumerate(extracted[:5], start=1):
             print(f"\n--- Tabela {i} ---")
             print(df.head(10))

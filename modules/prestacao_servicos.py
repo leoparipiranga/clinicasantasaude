@@ -36,6 +36,11 @@ AJUDA_LAB = """**Sistema:** WorkLab
 **Parâmetros:** Data do dia anterior
 **Instruções:** Pesquisar ➜ Botão Excel ➜ Gerar Excel Detalhado
 **Nome padrão:** relMovimentoDiarioDetalhado(-data-).xls"""
+AJUDA_CONVENIO_DETALHADO = """**Sistema:** WorkLab
+**Caminho:** Relatórios ➜ Convênio ➜ Por Convênio Individual 
+**Parâmetros:** Mês anterior
+**Instruções:** Preencher parâmetros ➜ Gerar Excel ➜ Detalhado por Linha
+**Nome padrão:** relConvDetalhadoPorLinha_(-data-).xlsx"""
 AJUDA_IPES = """**Sistema:** https://portalconectasaude.com.br
 **Caminho:** Extrato de Utilização
 **Parâmetros:** Mês anterior; Situação: Autorizada, Autorizada parcialmente, Autorizada em Contingência
@@ -75,6 +80,12 @@ def show():
             f"arquivo_laboratorio_{st.session_state.get('upload_counter', 0)}",
             AJUDA_LAB
         )
+        arquivo_convenio_detalhado = uploader_com_ajuda(
+            "Arquivo de Convênio Detalhado (XLSX)",
+            ['xlsx','xls'],
+            f"arquivo_convenio_detalhado_{st.session_state.get('upload_counter', 0)}",
+            AJUDA_CONVENIO_DETALHADO
+        )
 
     with col2:
         arquivo_convenio_pdf = uploader_com_ajuda(
@@ -100,11 +111,10 @@ def show():
     # Botão de processamento
     st.markdown("---")
     if st.button("🔄 Processar Arquivos", use_container_width=True):
-        if any([arquivo_clinica, arquivo_laboratorio, arquivo_convenio_pdf, arquivo_mulvi, arquivo_getnet]):
+        if any([arquivo_clinica, arquivo_laboratorio, arquivo_convenio_detalhado,arquivo_convenio_pdf, arquivo_mulvi, arquivo_getnet]):
             with st.spinner("Processando arquivos..."):
-                resultado = processar_arquivos(arquivo_clinica, arquivo_laboratorio,
-                                            arquivo_convenio_pdf, arquivo_mulvi, arquivo_getnet)
-                
+                resultado = processar_arquivos(arquivo_clinica, arquivo_laboratorio, arquivo_convenio_detalhado, arquivo_convenio_pdf, arquivo_mulvi, arquivo_getnet)
+
                 if resultado['sucesso']:
                     st.success("Arquivos processados. Verifique os resultados abaixo.")
                     
@@ -114,6 +124,8 @@ def show():
                         dados_processados['clinica'] = resultado['dados_clinica']
                     if resultado.get('dados_laboratorio') is not None:
                         dados_processados['laboratorio'] = resultado['dados_laboratorio']
+                    if resultado.get('dados_convenio_detalhado') is not None:
+                        dados_processados['convenio_detalhado'] = resultado['dados_convenio_detalhado']
                     if resultado.get('dados_convenios') is not None:
                         dados_processados['convenio_ipes'] = resultado['dados_convenios']
                     if resultado.get('dados_mulvi') is not None:
@@ -143,19 +155,31 @@ def show():
             st.info("✅ Nenhuma data conflitante encontrada. Você pode realizar a importação.")
             if st.button("🔴 Realizar Importação", type="primary", use_container_width=True):
                 with st.spinner("Salvando dados..."):
-                    # ... (seu código para salvar os dados continua aqui, sem alterações)
                     df_clinica = st.session_state.dados_processados.get('clinica')
                     df_laboratorio = st.session_state.dados_processados.get('laboratorio')
+                    df_convenio_detalhado = st.session_state.dados_processados.get('convenio_detalhado')
                     df_convenio_ipes = st.session_state.dados_processados.get('convenio_ipes')
                     df_mulvi = st.session_state.dados_processados.get('mulvi')
                     df_getnet = st.session_state.dados_processados.get('credito_getnet')
-                    resultado_save = salvar_importacao(df_clinica, df_laboratorio, df_convenio_ipes,
-                                                       df_mulvi, df_getnet)
-                    
+                    resultado_save = salvar_importacao(df_clinica, df_laboratorio, df_convenio_detalhado,
+                                                       df_convenio_ipes, df_mulvi, df_getnet)
+
                     if resultado_save['sucesso']:
                         st.success("✅ Dados importados com sucesso!")
+
+                        # Mostra débitos registrados automaticamente
+                        if resultado_save.get('debitos_registrados', 0) > 0:
+                            st.success(f"💳 {resultado_save['debitos_registrados']} pagamentos em débito foram registrados automaticamente nas contas:")
+                            st.info("• Débito MULVI → Conta BANESE\n• Débito GETNET → Conta SANTANDER")
                         
-                        # ... (código de resumo e atualização, sem alterações)
+                        # NOVO: Mostra resultado da consolidação IPES
+                        consolidacao_ipes = resultado_save.get('consolidacao_ipes')
+                        if consolidacao_ipes:
+                            if consolidacao_ipes['sucesso']:
+                                st.success(f"🏥 IPES: {consolidacao_ipes['mensagem']}")
+                            else:
+                                st.warning(f"⚠️ IPES: {consolidacao_ipes['mensagem']}")
+                                                
                         try:
                             sucesso_recebimentos, msg_recebimentos = atualizar_recebimentos_pendentes()
                             if sucesso_recebimentos:
@@ -166,7 +190,7 @@ def show():
                             st.warning(f"⚠️ Problema ao atualizar recebimentos: {str(e)}")
                         
                         st.markdown("### 📊 Resumo da Importação")
-                        col_res1, col_res2, col_res3, col_res4, col_res5 = st.columns(5)
+                        col_res1, col_res2, col_res3, col_res4, col_res5, col_res6 = st.columns(6)
                         # ... (código das métricas, sem alterações)
                         with col_res1:
                             if resultado_save.get('clinica_linhas', 0) > 0:
@@ -175,12 +199,15 @@ def show():
                             if resultado_save.get('laboratorio_linhas', 0) > 0:
                                 st.metric("Laboratório", f"{resultado_save['laboratorio_linhas']} registros")
                         with col_res3:
+                            if resultado_save.get('convenio_detalhado_linhas', 0) > 0:
+                                st.metric("Convênio Detalhado", f"{resultado_save['convenio_detalhado_linhas']} registros")
+                        with col_res4:
                             if resultado_save.get('ipes_linhas', 0) > 0:
                                 st.metric("Convênio IPES", f"{resultado_save['ipes_linhas']} registros")
-                        with col_res4:
+                        with col_res5:
                             if resultado_save.get('mulvi_linhas', 0) > 0:
                                 st.metric("MULVI", f"{resultado_save['mulvi_linhas']} registros")
-                        with col_res5:
+                        with col_res6:
                             if resultado_save.get('getnet_linhas', 0) > 0:
                                 st.metric("GETNET", f"{resultado_save['getnet_linhas']} registros")
 
@@ -226,6 +253,8 @@ def show():
             tab_names.append("Clínica")
         if st.session_state.dados_processados.get('laboratorio') is not None:
             tab_names.append("Laboratório")
+        if st.session_state.dados_processados.get('convenio_detalhado') is not None:
+            tab_names.append("Convênio Detalhado")
         if st.session_state.dados_processados.get('convenio_ipes') is not None:
             tab_names.append("Convênio IPES")
         if st.session_state.dados_processados.get('mulvi') is not None:
@@ -247,6 +276,12 @@ def show():
                     df_laboratorio = st.session_state.dados_processados['laboratorio']
                     st.write(f"**Total de registros:** {len(df_laboratorio)}")
                     st.dataframe(df_laboratorio, use_container_width=True, hide_index=True)
+                tab_index += 1
+            if st.session_state.dados_processados.get('convenio_detalhado') is not None:
+                with tabs[tab_index]:
+                    df_convenio_detalhado = st.session_state.dados_processados['convenio_detalhado']
+                    st.write(f"**Total de registros:** {len(df_convenio_detalhado)}")
+                    st.dataframe(df_convenio_detalhado, use_container_width=True, hide_index=True)
                 tab_index += 1
             if st.session_state.dados_processados.get('convenio_ipes') is not None:
                 with tabs[tab_index]:
@@ -275,6 +310,7 @@ def show():
     opcoes_map = {
         "Clínica": "clinica",
         "Laboratório": "laboratorio",
+        "Convênio Detalhado": "convenio_detalhado",
         "Convênio IPES": "ipes",
         "Cartão MULVI": "mulvi",
         "Cartão GETNET": "getnet"

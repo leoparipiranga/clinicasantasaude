@@ -27,6 +27,7 @@ from modules import (
     pagamentos,
     pagamentos_medicos,
     transferencia,
+    edicao,
     configuracoes)
 
 inicializar_movimentacao_contas()
@@ -297,9 +298,9 @@ if st.sidebar.button("👨‍⚕️ Pagamentos Médicos", use_container_width=Tr
 if st.sidebar.button("🔄 Transferências", use_container_width=True):
     st.session_state.page_selected = 'transferencia'
     st.rerun()
-# if st.sidebar.button("🛠️ Teste Cartão", use_container_width=True):
-#     st.session_state.page_selected = 'Teste Cartão'
-#     st.rerun()  
+if st.sidebar.button("🛠️ Edição", use_container_width=True):
+    st.session_state.page_selected = 'edicao'
+    st.rerun()
 
 # if st.sidebar.button("⚙️ Configurações", use_container_width=True):
 #     st.session_state.page_selected = 'configuracoes'
@@ -308,7 +309,7 @@ if st.sidebar.button("🔄 Transferências", use_container_width=True):
 st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 # Título principal
-st.title("🏥 Santa Saúde - Sistema de Gestão")
+st.subheader("🏥 Santa Saúde - Sistema de Gestão")
 
 # Carrega a página selecionada
 page = st.session_state.page_selected
@@ -340,9 +341,10 @@ elif page == 'transferencia':
     st.markdown("---")
     from modules import transferencia
     transferencia.show()
-# elif page == "Teste Cartão":  # Adicione esta opção temporária
-#     import testa_cartao
-#     testa_cartao.show()
+elif page == "edicao":
+    from modules.edicao import mostrar_edicao
+    mostrar_edicao()
+    
 # elif page == 'configuracoes':
 #     from modules import configuracoes
 #     configuracoes.show()

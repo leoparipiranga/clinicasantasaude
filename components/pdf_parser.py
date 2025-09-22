@@ -173,6 +173,106 @@ def parse_pdf_text_as_table(pdf_path: str):
     df_falhas = pd.DataFrame(falhas)
     return df, df_falhas
 
+# --- NOVO: função para extrair tabela de procedimentos (código + descrição) ---
+def extrair_tabela_procedimentos(pdf_path: str):
+    """
+    Extrai somente pares (codigo_procedimento, descricao_procedimento) do PDF IPES.
+    Retorna (df_procedimentos, df_falhas).
+    """
+    procedimentos = []
+    falhas = []
+
+    RX_PROC = re.compile(r'(?<!\d)(\d{8,9})(?!\d)\s*-\s*([^\n\r]+)', re.I)
+
+    def extrair_descricao_por_caixa(descricao_bruta: str) -> str:
+        # procura primeiro caractere alfabético minúsculo
+        idx_lower = None
+        for i, ch in enumerate(descricao_bruta):
+            if ch.isalpha() and ch.islower():
+                idx_lower = i
+                break
+        if idx_lower is not None:
+            # recua até o último " - " antes do primeiro lowercase
+            pos_sep = descricao_bruta.rfind(' - ', 0, idx_lower)
+            if pos_sep != -1:
+                desc = descricao_bruta[:pos_sep].strip()
+            else:
+                desc = descricao_bruta.split(' - ')[0].strip()
+        else:
+            desc = descricao_bruta.split(' - ')[0].strip()
+        desc = re.sub(r'\s+', ' ', desc).strip()
+        desc = re.sub(r'[\s\-\–_:]+$', '', desc).strip()
+        return desc
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for pidx, page in enumerate(pdf.pages, start=1):
+            text = page.extract_text() or ""
+            buffer = ""
+            for raw in text.splitlines():
+                linha = normalize_line(raw)
+
+                # acumula linhas que possam pertencer a um registro de procedimento
+                if re.match(r'^\s*\d+\s+\d{2}\s+\d+', linha) or buffer:
+                    buffer = (buffer + " " + linha).strip() if buffer else linha
+
+                    # tenta encontrar padrão código - descrição no buffer
+                    m = RX_PROC.search(buffer)
+                    if m:
+                        codigo = m.group(1)
+                        descricao_bruta = m.group(2).strip()
+                        descricao_limpa = extrair_descricao_por_caixa(descricao_bruta)
+                        procedimentos.append({
+                            'codigo_procedimento': str(codigo),
+                            'descricao_procedimento': descricao_limpa,
+                            'pagina': pidx,
+                            'linha_original': buffer
+                        })
+                        buffer = ""
+                else:
+                    # linha isolada pode conter código - descrição
+                    m2 = RX_PROC.search(linha)
+                    if m2:
+                        codigo = m2.group(1)
+                        descricao_bruta = m2.group(2).strip()
+                        descricao_limpa = extrair_descricao_por_caixa(descricao_bruta)
+                        procedimentos.append({
+                            'codigo_procedimento': str(codigo),
+                            'descricao_procedimento': descricao_limpa,
+                            'pagina': pidx,
+                            'linha_original': linha
+                        })
+                    else:
+                        # se linha tem muitos dígitos e traço pode ser contexto de beneficiário - capture como falha para revisão
+                        if re.search(r'\d{6,}\s*-\s*', linha):
+                            falhas.append({'pagina': pidx, 'linha': linha})
+
+            # flush buffer final
+            if buffer.strip():
+                m = RX_PROC.search(buffer)
+                if m:
+                    codigo = m.group(1)
+                    descricao_bruta = m.group(2).strip()
+                    descricao_limpa = extrair_descricao_por_caixa(descricao_bruta)
+                    procedimentos.append({
+                        'codigo_procedimento': str(codigo),
+                        'descricao_procedimento': descricao_limpa,
+                        'pagina': pidx,
+                        'linha_original': buffer
+                    })
+                else:
+                    if buffer.strip():
+                        falhas.append({'pagina': pidx, 'linha': buffer})
+                buffer = ""
+
+    df_proc = pd.DataFrame(procedimentos)
+    df_falhas = pd.DataFrame(falhas)
+
+    if not df_proc.empty:
+        df_proc = df_proc.drop_duplicates(subset=['codigo_procedimento'], keep='first').reset_index(drop=True)
+        df_proc = df_proc.sort_values('codigo_procedimento').reset_index(drop=True)
+
+    return df_proc, df_falhas
+
 def processar_pdf_convenio_ipes(uploaded_file):
     """
     Processa o arquivo PDF uploadado e retorna DataFrame formatado para o sistema
@@ -186,7 +286,37 @@ def processar_pdf_convenio_ipes(uploaded_file):
         
         # Processa o PDF
         df_raw, df_falhas = parse_pdf_text_as_table(tmp_path)
-        
+
+        # --- NOVO: extrai tabela de procedimentos e atualiza procedimentos.pkl ---
+        try:
+            df_proc_new, df_proc_falhas = extrair_tabela_procedimentos(tmp_path)
+            caminho_proc = 'data/procedimentos.pkl'
+            os.makedirs('data', exist_ok=True)
+            if not df_proc_new.empty:
+                if os.path.exists(caminho_proc):
+                    try:
+                        df_exist = pd.read_pickle(caminho_proc)
+                        # concatena mantendo descrições existentes como prioridade
+                        df_concat = pd.concat([df_exist, df_proc_new], ignore_index=True)
+                        df_concat = df_concat.drop_duplicates(subset=['codigo_procedimento'], keep='first').reset_index(drop=True)
+                        df_concat.to_pickle(caminho_proc)
+                        df_proc_salvo = df_concat
+                    except Exception:
+                        # fallback: salva apenas os novos
+                        df_proc_new.to_pickle(caminho_proc)
+                        df_proc_salvo = df_proc_new
+                else:
+                    df_proc_new.to_pickle(caminho_proc)
+                    df_proc_salvo = df_proc_new
+            else:
+                # arquivo existente ou vazio
+                if os.path.exists(caminho_proc):
+                    df_proc_salvo = pd.read_pickle(caminho_proc)
+                else:
+                    df_proc_salvo = pd.DataFrame(columns=['codigo_procedimento', 'descricao_procedimento'])
+        except Exception:
+            df_proc_salvo = pd.DataFrame(columns=['codigo_procedimento', 'descricao_procedimento'])
+
         # Remove arquivo temporário
         os.unlink(tmp_path)
         
@@ -216,6 +346,45 @@ def processar_pdf_convenio_ipes(uploaded_file):
         ]
         
         df_final = df_processado[colunas_finais]
+        df_final['status_conciliacao'] = 'pendente'
+        
+        # ETAPA 3: Adiciona coluna indice_paciente após o processamento
+        if 'data_cadastro' in df_final.columns and 'paciente' in df_final.columns:
+            df_final['data_cadastro'] = pd.to_datetime(df_final['data_cadastro'])
+            df_final['indice_paciente'] = (
+                df_final['data_cadastro'].dt.strftime('%Y-%m-%d') + '_' + 
+                df_final['paciente'].astype(str)
+            )
+
+        # --- NOVO: adiciona coluna descricao via merge com procedimentos salvos ---
+        try:
+            caminho_proc = 'data/procedimentos.pkl'
+            if os.path.exists(caminho_proc):
+                df_proc_master = pd.read_pickle(caminho_proc)
+            else:
+                df_proc_master = pd.DataFrame(columns=['codigo_procedimento', 'descricao_procedimento'])
+
+            # Garante tipos string para merge e remove espaços
+            df_final['procedimento_codigo'] = df_final['procedimento_codigo'].astype(str).str.strip()
+            df_proc_master['codigo_procedimento'] = df_proc_master['codigo_procedimento'].astype(str).str.strip()
+
+            df_final = df_final.merge(
+                df_proc_master[['codigo_procedimento', 'descricao_procedimento']],
+                left_on='procedimento_codigo',
+                right_on='codigo_procedimento',
+                how='left'
+            )
+            # Renomeia coluna para 'descricao' esperada pelo sistema
+            if 'descricao_procedimento' in df_final.columns:
+                df_final.rename(columns={'descricao_procedimento': 'descricao'}, inplace=True)
+            else:
+                df_final['descricao'] = None
+
+            # remove coluna auxiliar código duplicada
+            if 'codigo_procedimento' in df_final.columns:
+                df_final.drop(columns=['codigo_procedimento'], inplace=True)
+        except Exception:
+            df_final['descricao'] = None
         
         return df_final, f"PDF processado com sucesso! {len(df_final)} registros extraídos. Falhas: {len(df_falhas)}"
         

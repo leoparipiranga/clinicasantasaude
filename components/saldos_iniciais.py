@@ -4,14 +4,14 @@ from datetime import datetime
 
 # --- CONFIGURE AQUI OS SALDOS INICIAIS ---
 saldos_iniciais = {
-    "SANTANDER": -3178.08,
-    "BANESE": 0.33,
+    "SANTANDER": 500,
+    "BANESE": 154.34,
     "C6": 11.36,
     "CAIXA": 0,
     "BNB": 0.00,
     "MERCADO PAGO": 0,
-    "CONTA PIX": -10091.82,
-    "DINHEIRO": 260.86,
+    "CONTA PIX": 478.14,
+    "DINHEIRO": 216.63,
 }
 # -----------------------------------------
 
