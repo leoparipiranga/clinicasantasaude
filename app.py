@@ -39,6 +39,77 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# CSS para reduzir espaços em branco e otimizar layout
+st.markdown("""
+<style>
+    /* Remove espaçamento superior da página */
+    .main > div {
+        padding-top: 0rem;
+    }
+    
+    /* Reduz padding do container principal */
+    .main .block-container {
+        padding-top: 0rem;
+        padding-bottom: 1rem;
+    }
+    
+    /* Remove espaço extra do header */
+    .main h2 {
+        margin-top: 0rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Estilização do menu lateral */
+    .sidebar-menu {
+        padding: 20px 0;
+    }
+    .menu-item {
+        display: block;
+        padding: 15px 20px;
+        margin: 10px 0;
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #262730;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+    .menu-item:hover {
+        background-color: #e6f2ff;
+        border-color: #1f4e79;
+        transform: translateX(5px);
+    }
+    .menu-item.active {
+        background-color: #1f4e79;
+        color: white;
+        border-color: #1f4e79;
+    }
+    .menu-icon {
+        font-size: 24px;
+        margin-right: 15px;
+    }
+    .menu-text {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    
+    /* Estilização da área do usuário no sidebar */
+    .user-info {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 10px;
+        margin: 15px 0;
+        border-left: 4px solid #1f4e79;
+    }
+    .user-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f4e79;
+        margin-bottom: 8px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 def login():
     """Tela de login do sistema"""
     
@@ -141,30 +212,32 @@ def exibir_saldos():
     .card-saldo {
         background-color: #ffffff;
         border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 15px;
+        border-radius: 6px;
+        padding: 6px;
         margin-bottom: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         transition: transform 0.2s, box-shadow 0.2s;
         text-align: center;
-        height: 120px;
+        height: 60px;
+        max-width: 200px;
+        width: 100%;
         display: flex;
         flex-direction: column;
         justify-content: center;
     }
     .card-saldo:hover {
         transform: translateY(-3px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .card-titulo {
-        font-size: 14px;
-        font-weight: bold;
+        font-size: 13px;
+        font-weight: 500;
         color: #555555;
-        margin-bottom: 8px;
+        margin-bottom: 0px;
     }
     .card-valor {
-        font-size: 20px;
-        font-weight: bold;
+        font-size: 18px;
+        font-weight: 600;
     }
     .saldo-positivo {
         color: #2e7d32; /* Verde mais sóbrio */
@@ -180,33 +253,29 @@ def exibir_saldos():
     contas_principais = ["DINHEIRO", "CONTA PIX"]
     outras_contas = ["SANTANDER", "BANESE", "C6", "CAIXA", "BNB", "MERCADO PAGO"]
 
-    # Layout: 2 colunas principais para a nova organização
-    col_main1, col_main2 = st.columns([1, 2])
+    # Layout: 5 colunas principais para a nova organização
+    col_main1, col_main2, col_main3, col_main4, col_main5 = st.columns([1, 1, 1, 1, 3])
 
-    with col_main1:
-        # Coluna para DINHEIRO e CONTA PIX
-        for conta in contas_principais:
-            saldo = saldos.get(conta, 0.0)
-            cor_classe = "saldo-positivo" if saldo >= 0 else "saldo-negativo"
-            nome_exibicao = "CAIXA FÍSICO" if conta == "DINHEIRO" else conta
-            
-            st.markdown(f"""
-            <div class="card-saldo">
-                <div class="card-titulo">{nome_exibicao}</div>
-                <div class="card-valor {cor_classe}">R$ {saldo:,.2f}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    # Prepara lista de contas (total 8: 2 principais + 6 outras)
+    contas_exibir = contas_principais + outras_contas
 
-    with col_main2:
-        # 3 colunas para as outras 6 contas
-        cols_outras = st.columns(3)
-        
-        for i, conta in enumerate(outras_contas):
-            col_idx = i % 3
-            with cols_outras[col_idx]:
+    # Distribui 2 contas por cada uma das 4 primeiras colunas (duas filas)
+    cols = [col_main1, col_main2, col_main3, col_main4]
+    for col_idx, col in enumerate(cols):
+        with col:
+            for j in range(2):  # duas filas por coluna
+                acc_idx = col_idx * 2 + j
+                if acc_idx >= len(contas_exibir):
+                    break
+                conta = contas_exibir[acc_idx]
                 saldo = saldos.get(conta, 0.0)
                 cor_classe = "saldo-positivo" if saldo >= 0 else "saldo-negativo"
-                nome_exibicao = "M. PAGO" if conta == "MERCADO PAGO" else conta
+                if conta == "DINHEIRO":
+                    nome_exibicao = "CAIXA FÍSICO"
+                elif conta == "MERCADO PAGO":
+                    nome_exibicao = "M. PAGO"
+                else:
+                    nome_exibicao = conta
 
                 st.markdown(f"""
                 <div class="card-saldo">
@@ -215,60 +284,14 @@ def exibir_saldos():
                 </div>
                 """, unsafe_allow_html=True)
 
+    # Quinta coluna intencionalmente vazia
+    with col_main5:
+        st.write("")
+
 # Verifica se o usuário está autenticado
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     login()
     st.stop()
-
-# Header com logout (só aparece se estiver autenticado)
-col1, col2, col3 = st.columns([6, 1, 1])
-with col2:
-    nome = st.session_state.get('nome_completo', 'Usuário')
-    st.write(f"**{nome}**")
-with col3:
-    if st.button("Logout"):
-        st.session_state["authenticated"] = False
-        st.session_state["usuario_logado"] = ""
-        st.session_state["nome_completo"] = ""
-        st.rerun()
-
-# CSS para estilizar o menu lateral
-st.markdown("""
-<style>
-.sidebar-menu {
-    padding: 20px 0;
-}
-.menu-item {
-    display: block;
-    padding: 15px 20px;
-    margin: 10px 0;
-    background-color: #f0f2f6;
-    border-radius: 10px;
-    text-decoration: none;
-    color: #262730;
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
-}
-.menu-item:hover {
-    background-color: #e6f2ff;
-    border-color: #1f4e79;
-    transform: translateX(5px);
-}
-.menu-item.active {
-    background-color: #1f4e79;
-    color: white;
-    border-color: #1f4e79;
-}
-.menu-icon {
-    font-size: 24px;
-    margin-right: 15px;
-}
-.menu-text {
-    font-size: 16px;
-    font-weight: bold;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # Menu lateral
 st.sidebar.markdown('<div class="sidebar-menu">', unsafe_allow_html=True)
@@ -298,6 +321,7 @@ if st.sidebar.button("👨‍⚕️ Pagamentos Médicos", use_container_width=Tr
 if st.sidebar.button("🔄 Transferências", use_container_width=True):
     st.session_state.page_selected = 'transferencia'
     st.rerun()
+
 if st.sidebar.button("🛠️ Edição", use_container_width=True):
     st.session_state.page_selected = 'edicao'
     st.rerun()
@@ -308,7 +332,22 @@ if st.sidebar.button("🛠️ Edição", use_container_width=True):
 
 st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
-# Título principal
+# Informações do usuário e logout no sidebar
+st.sidebar.markdown("---")
+nome = st.session_state.get('nome_completo', 'Usuário')
+st.sidebar.markdown(f"""
+<div class="user-info">
+    <div class="user-name">👤 {nome}</div>
+</div>
+""", unsafe_allow_html=True)
+
+if st.sidebar.button("🚪 Logout", use_container_width=True, type="secondary"):
+    st.session_state["authenticated"] = False
+    st.session_state["usuario_logado"] = ""
+    st.session_state["nome_completo"] = ""
+    st.rerun()
+
+# Título principal (agora sem espaçamento extra)
 st.subheader("🏥 Santa Saúde - Sistema de Gestão")
 
 # Carrega a página selecionada
